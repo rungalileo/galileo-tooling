@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "sentry": {
+      "command": "npx",
+      "args": ["-y", "@sentry/mcp-server@latest"],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}"
+      }
+    },
+    "logzio": {
+      "command": "npx",
+      "args": ["-y", "logzio-mcp-server"],
+      "env": {
+        "LOGZIO_API_KEY": "${LOGZIO_API_KEY}",
+        "LOGZIO_REGION": "${LOGZIO_REGION}"
+      }
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-slack@latest"],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+      }
+    }
+  }
+}

@@ -121,7 +121,7 @@ ENVEOF
 echo ""
 echo "Wrote $ENV_FILE"
 
-# --- Generate / merge .mcp.json ---
+# --- Generate / merge .mcp.json from template ---
 echo ""
 echo "========================================="
 echo "  Configuring MCP Servers"
@@ -129,79 +129,56 @@ echo "========================================="
 echo ""
 
 MCP_FILE="$REPO_DIR/.mcp.json"
+MCP_TEMPLATE="$REPO_DIR/mcp/mcp.template.json"
 
-# Use node to merge new servers into existing .mcp.json (preserves unknown servers)
+# Substitute env vars into template, then use node to drop unconfigured
+# servers and merge with any existing .mcp.json
 node -e "
 const fs = require('fs');
-const mcpFile = process.argv[1];
+const [mcpFile, templateFile] = process.argv.slice(1);
 
-// Load existing config or start fresh
-let config = { mcpServers: {} };
+// Read template and substitute \${VAR} placeholders from env
+let raw = fs.readFileSync(templateFile, 'utf8');
+raw = raw.replace(/\\\$\{(\w+)\}/g, (_, key) => process.env[key] || '');
+const template = JSON.parse(raw);
+
+// Drop servers where any env value is empty
+for (const [name, server] of Object.entries(template.mcpServers)) {
+  const envVals = Object.values(server.env || {});
+  if (envVals.some(v => !v)) {
+    delete template.mcpServers[name];
+  }
+}
+
+// Load existing .mcp.json if present
+let existing = { mcpServers: {} };
 if (fs.existsSync(mcpFile)) {
   try {
-    config = JSON.parse(fs.readFileSync(mcpFile, 'utf8'));
-    if (!config.mcpServers) config.mcpServers = {};
+    existing = JSON.parse(fs.readFileSync(mcpFile, 'utf8'));
+    if (!existing.mcpServers) existing.mcpServers = {};
     console.log('  Loaded existing ' + mcpFile);
   } catch (e) {
     console.log('  Warning: could not parse existing .mcp.json, starting fresh');
   }
 }
 
-const existing = Object.keys(config.mcpServers);
+// Merge: existing servers take priority (don't overwrite)
 let added = [];
 let skipped = [];
-
-// Sentry
-const sentryToken = process.env.SENTRY_ACCESS_TOKEN || '';
-if (config.mcpServers.sentry) {
-  skipped.push('sentry (already configured)');
-} else if (sentryToken) {
-  config.mcpServers.sentry = {
-    command: 'npx',
-    args: ['-y', '@sentry/mcp-server@latest'],
-    env: { SENTRY_ACCESS_TOKEN: sentryToken }
-  };
-  added.push('sentry');
-}
-
-// Logz.io
-const logzKey = process.env.LOGZIO_API_KEY || '';
-if (config.mcpServers.logzio) {
-  skipped.push('logzio (already configured)');
-} else if (logzKey) {
-  config.mcpServers.logzio = {
-    command: 'npx',
-    args: ['-y', 'logzio-mcp-server'],
-    env: {
-      LOGZIO_API_KEY: logzKey,
-      LOGZIO_REGION: process.env.LOGZIO_REGION || 'us'
-    }
-  };
-  added.push('logzio');
-}
-
-// Slack
-const slackToken = process.env.SLACK_BOT_TOKEN || '';
-const slackTeam = process.env.SLACK_TEAM_ID || '';
-if (config.mcpServers.slack) {
-  skipped.push('slack (already configured)');
-} else if (slackToken && slackTeam) {
-  config.mcpServers.slack = {
-    command: 'npx',
-    args: ['-y', '@anthropic/mcp-slack@latest'],
-    env: {
-      SLACK_BOT_TOKEN: slackToken,
-      SLACK_TEAM_ID: slackTeam
-    }
-  };
-  added.push('slack');
+for (const [name, server] of Object.entries(template.mcpServers)) {
+  if (existing.mcpServers[name]) {
+    skipped.push(name + ' (already configured)');
+  } else {
+    existing.mcpServers[name] = server;
+    added.push(name);
+  }
 }
 
 for (const s of added) console.log('  + ' + s);
 for (const s of skipped) console.log('  ~ ' + s);
 
-if (added.length > 0 || existing.length > 0) {
-  fs.writeFileSync(mcpFile, JSON.stringify(config, null, 2) + '\n');
+if (Object.keys(existing.mcpServers).length > 0) {
+  fs.writeFileSync(mcpFile, JSON.stringify(existing, null, 2) + '\n');
   console.log('');
   console.log('  Wrote ' + mcpFile);
   console.log('');
@@ -212,7 +189,7 @@ if (added.length > 0 || existing.length > 0) {
 } else {
   console.log('  No MCP tokens provided, skipping .mcp.json');
 }
-" "$MCP_FILE"
+" "$MCP_FILE" "$MCP_TEMPLATE"
 
 # --- Install skills ---
 echo ""
