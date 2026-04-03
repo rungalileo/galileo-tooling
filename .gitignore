@@ -1,6 +1,7 @@
 .env
 .env.*
 !env.sample
+.mcp.json
 .DS_Store
 node_modules/
 .history

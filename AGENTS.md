@@ -18,11 +18,10 @@ Tokens are stored in `.env` (never committed to git). See `env.sample` for the f
 
 ## MCP Servers
 
-Some skills work best with MCP (Model Context Protocol) servers connected. Configure these in your tool's MCP settings:
+Some skills work best with MCP (Model Context Protocol) servers connected. See the setup guides in `mcp/`:
 
-- **Sentry** — For error investigation skills
-- **ClickHouse** — For metrics and analytics skills
-- **Logz.io** — For log analysis skills
-- **Shortcut** — For project management skills
+- [Sentry](mcp/sentry.md) — Error investigation and issue tracking
+- [Logz.io](mcp/logzio.md) — Log analysis and search
+- [Slack](mcp/slack.md) — Channel reading and messaging
 
-Refer to each MCP server's documentation for setup instructions.
+Add each server's config block to your project's `.mcp.json` under `mcpServers`.
