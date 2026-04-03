@@ -1,0 +1,10 @@
+{
+  "name": "galileo-tooling",
+  "description": "Custom Galileo AI agent skills — discoverable via npx skills add rungalileo/galileo-tooling",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rungalileo/galileo-tooling"
+  }
+}
