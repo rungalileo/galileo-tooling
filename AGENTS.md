@@ -18,10 +18,6 @@ Tokens are stored in `.env` (never committed to git). See `env.sample` for the f
 
 ## MCP Servers
 
-Some skills work best with MCP (Model Context Protocol) servers connected. See the setup guides in `mcp/`:
+`setup.sh` configures Sentry, Logz.io, and Slack MCP servers automatically and generates `.mcp.json`.
 
-- [Sentry](mcp/sentry.md) — Error investigation and issue tracking
-- [Logz.io](mcp/logzio.md) — Log analysis and search
-- [Slack](mcp/slack.md) — Channel reading and messaging
-
-Add each server's config block to your project's `.mcp.json` under `mcpServers`.
+For Slack, you need to create an app and get a bot token first — see [mcp/slack.md](mcp/slack.md) for the prerequisites.
