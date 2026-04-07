@@ -76,6 +76,15 @@ echo "========================================="
 echo ""
 prompt_if_empty SHORTCUT_API_TOKEN "Shortcut API token"
 
+echo ""
+echo "========================================="
+echo "  Figma (leave blank to skip)"
+echo "========================================="
+echo "  Create a token at: https://www.figma.com/settings → Personal access tokens"
+echo "  Required scopes: File content (Read)"
+echo ""
+prompt_if_empty FIGMA_ACCESS_TOKEN "Figma personal access token"
+
 # Write .env
 cat > "$ENV_FILE" <<ENVEOF
 # Galileo Tooling — Environment Variables
@@ -99,6 +108,9 @@ CLICKHOUSE_PASSWORD='${CLICKHOUSE_PASSWORD:-}'
 
 # Shortcut
 SHORTCUT_API_TOKEN='${SHORTCUT_API_TOKEN:-}'
+
+# Figma
+FIGMA_ACCESS_TOKEN='${FIGMA_ACCESS_TOKEN:-}'
 ENVEOF
 
 echo ""
