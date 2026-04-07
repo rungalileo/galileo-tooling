@@ -84,6 +84,15 @@ echo "  Create a token at: https://coda.io/account → API settings → Generate
 echo ""
 prompt_if_empty CODA_API_KEY "Coda API key"
 
+echo ""
+echo "========================================="
+echo "  Figma (leave blank to skip)"
+echo "========================================="
+echo "  Create a token at: https://www.figma.com/settings → Personal access tokens"
+echo "  Required scopes: File content (Read)"
+echo ""
+prompt_if_empty FIGMA_ACCESS_TOKEN "Figma personal access token"
+
 # Write .env
 cat > "$ENV_FILE" <<ENVEOF
 # Galileo Tooling — Environment Variables
@@ -110,6 +119,9 @@ SHORTCUT_API_TOKEN='${SHORTCUT_API_TOKEN:-}'
 
 # Coda
 CODA_API_KEY='${CODA_API_KEY:-}'
+
+# Figma
+FIGMA_ACCESS_TOKEN='${FIGMA_ACCESS_TOKEN:-}'
 ENVEOF
 
 echo ""
