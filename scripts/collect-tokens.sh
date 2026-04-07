@@ -78,6 +78,14 @@ prompt_if_empty SHORTCUT_API_TOKEN "Shortcut API token"
 
 echo ""
 echo "========================================="
+echo "  Coda (leave blank to skip)"
+echo "========================================="
+echo "  Create a token at: https://coda.io/account → API settings → Generate API token"
+echo ""
+prompt_if_empty CODA_API_KEY "Coda API key"
+
+echo ""
+echo "========================================="
 echo "  Figma (leave blank to skip)"
 echo "========================================="
 echo "  Create a token at: https://www.figma.com/settings → Personal access tokens"
@@ -108,6 +116,9 @@ CLICKHOUSE_PASSWORD='${CLICKHOUSE_PASSWORD:-}'
 
 # Shortcut
 SHORTCUT_API_TOKEN='${SHORTCUT_API_TOKEN:-}'
+
+# Coda
+CODA_API_KEY='${CODA_API_KEY:-}'
 
 # Figma
 FIGMA_ACCESS_TOKEN='${FIGMA_ACCESS_TOKEN:-}'

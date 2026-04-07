@@ -23,6 +23,13 @@
         "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
       }
     },
+    "coda": {
+      "command": "npx",
+      "args": ["-y", "coda-mcp-readonly"],
+      "env": {
+        "API_KEY": "${CODA_API_KEY}"
+      }
+    },
     "figma": {
       "command": "npx",
       "args": ["-y", "figma-developer-mcp", "--stdio"],
