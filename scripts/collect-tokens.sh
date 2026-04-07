@@ -76,6 +76,14 @@ echo "========================================="
 echo ""
 prompt_if_empty SHORTCUT_API_TOKEN "Shortcut API token"
 
+echo ""
+echo "========================================="
+echo "  Coda (leave blank to skip)"
+echo "========================================="
+echo "  Create a token at: https://coda.io/account → API settings → Generate API token"
+echo ""
+prompt_if_empty CODA_API_KEY "Coda API key"
+
 # Write .env
 cat > "$ENV_FILE" <<ENVEOF
 # Galileo Tooling — Environment Variables
@@ -99,6 +107,9 @@ CLICKHOUSE_PASSWORD='${CLICKHOUSE_PASSWORD:-}'
 
 # Shortcut
 SHORTCUT_API_TOKEN='${SHORTCUT_API_TOKEN:-}'
+
+# Coda
+CODA_API_KEY='${CODA_API_KEY:-}'
 ENVEOF
 
 echo ""
