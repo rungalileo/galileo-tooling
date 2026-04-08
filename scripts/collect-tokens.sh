@@ -31,7 +31,7 @@ echo "========================================="
 echo "  Sentry (leave blank to skip)"
 echo "========================================="
 echo "  Create a token at: https://sentry.io/settings/account/api/auth-tokens/"
-echo "  Required scopes: event:read, org:read, project:read, team:read, issue:read"
+echo "  Required scopes: event:read, team:read, project:read, organization:read"
 echo ""
 prompt_if_empty SENTRY_ACCESS_TOKEN "Sentry auth token"
 

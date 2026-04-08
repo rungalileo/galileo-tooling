@@ -40,7 +40,11 @@ This repo is designed to work alongside your existing Galileo service repos (api
 └── ...
 ```
 
-After running `./setup.sh`, skills and rules are installed globally — they're available in every repo automatically. You don't need to add anything to individual service repos.
+After running `./setup.sh`:
+
+- **Skills** are installed at **project level** inside `galileo-tooling/` (under `.agents/skills/` and symlinked into `.claude/skills/`, etc. for each detected agent). They are only available when working inside this directory.
+- **Rules** are symlinked from `~/.claude/shared-rules` → `<repo>/rules/`, making them available in every repo.
+- **MCP servers** are merged into `~/.claude.json`, making them available in every repo.
 
 If you want repo-specific skills or rules in addition to the shared ones, add them to that repo's own `.claude/skills/` or `.cursor/rules/` directory as usual. They layer on top of the shared set.
 
