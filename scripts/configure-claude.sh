@@ -35,38 +35,42 @@ else
   echo "No shared rules yet, skipping symlink."
 fi
 
-# Merge MCP servers from generated .mcp.json into ~/.claude/settings.json
+# Merge MCP servers from generated .mcp.json into ~/.claude.json (the correct location for user-scoped MCP servers)
 MCP_FILE="$REPO_DIR/.mcp.json"
-SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+CLAUDE_JSON="$HOME/.claude.json"
 if [ -f "$MCP_FILE" ]; then
   node -e "
 const fs = require('fs');
-const [mcpFile, settingsFile] = process.argv.slice(1);
+const [mcpFile, claudeJson] = process.argv.slice(1);
 
 const mcp = JSON.parse(fs.readFileSync(mcpFile, 'utf8'));
 const newServers = mcp.mcpServers || {};
 
-let settings = {};
-if (fs.existsSync(settingsFile)) {
-  try { settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch (e) {}
+let config = {};
+if (fs.existsSync(claudeJson)) {
+  try { config = JSON.parse(fs.readFileSync(claudeJson, 'utf8')); } catch (e) {}
 }
-if (!settings.mcpServers) settings.mcpServers = {};
+if (!config.mcpServers) config.mcpServers = {};
 
-let added = [], skipped = [];
+let added = [], updated = [], unchanged = [];
 for (const [name, server] of Object.entries(newServers)) {
-  if (settings.mcpServers[name]) {
-    skipped.push(name + ' (already configured)');
-  } else {
-    settings.mcpServers[name] = server;
+  if (!config.mcpServers[name]) {
+    config.mcpServers[name] = server;
     added.push(name);
+  } else if (JSON.stringify(config.mcpServers[name]) !== JSON.stringify(server)) {
+    config.mcpServers[name] = server;
+    updated.push(name);
+  } else {
+    unchanged.push(name);
   }
 }
 
-fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
-for (const s of added) console.log('  + ' + s + ' → ~/.claude/settings.json');
-for (const s of skipped) console.log('  ~ ' + s + ' (skipped)');
-if (added.length === 0 && skipped.length === 0) console.log('  No MCP servers to merge.');
-" "$MCP_FILE" "$SETTINGS_FILE"
+fs.writeFileSync(claudeJson, JSON.stringify(config, null, 2) + '\n');
+for (const s of added) console.log('  + ' + s + ' → ~/.claude.json');
+for (const s of updated) console.log('  ~ ' + s + ' (updated)');
+for (const s of unchanged) console.log('  = ' + s + ' (unchanged)');
+if (added.length === 0 && updated.length === 0 && unchanged.length === 0) console.log('  No MCP servers to merge.');
+" "$MCP_FILE" "$CLAUDE_JSON"
 else
   echo "No .mcp.json found, skipping MCP merge."
 fi
