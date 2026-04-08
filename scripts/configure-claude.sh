@@ -35,6 +35,23 @@ else
   echo "No shared rules yet, skipping symlink."
 fi
 
+# Symlink skills into ~/.claude/commands/
+COMMANDS_DIR="$CLAUDE_DIR/commands"
+mkdir -p "$COMMANDS_DIR"
+SKILLS_DIR="$REPO_DIR/skills/skills"
+if [ -d "$SKILLS_DIR" ]; then
+  for skill_dir in "$SKILLS_DIR"/*/; do
+    skill_name=$(basename "$skill_dir")
+    skill_file="$skill_dir/SKILL.md"
+    if [ -f "$skill_file" ]; then
+      ln -sf "$skill_file" "$COMMANDS_DIR/$skill_name.md"
+      echo "Linked skill $skill_name → $COMMANDS_DIR/$skill_name.md"
+    fi
+  done
+else
+  echo "No skills directory found, skipping."
+fi
+
 # Merge MCP servers from generated .mcp.json into ~/.claude/settings.json
 MCP_FILE="$REPO_DIR/.mcp.json"
 SETTINGS_FILE="$CLAUDE_DIR/settings.json"
