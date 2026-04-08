@@ -11,7 +11,9 @@ BASE_URL = "https://api.github.com"
 
 
 def _client() -> httpx.AsyncClient:
-    token = os.environ["GITHUB_TOKEN"]
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        raise RuntimeError("GITHUB_TOKEN environment variable is not set")
     return httpx.AsyncClient(
         base_url=BASE_URL,
         headers={
@@ -23,14 +25,19 @@ def _client() -> httpx.AsyncClient:
     )
 
 
-async def _paginate(client: httpx.AsyncClient, url: str) -> list[dict]:
+async def _paginate(client: httpx.AsyncClient, url: str, *, max_pages: int = 100) -> list[dict]:
     results: list[dict] = []
+    page = 0
     while url:
+        if page >= max_pages:
+            log.warning("Reached max_pages limit (%d), stopping pagination", max_pages)
+            break
         log.info("GET %s", url)
         resp = await client.get(url)
         resp.raise_for_status()
         results.extend(resp.json())
         url = resp.links.get("next", {}).get("url")
+        page += 1
     return results
 
 
@@ -363,17 +370,12 @@ async def publish_review(
 
 
 async def get_pr_diff(owner: str, repo: str, pr_number: int) -> str:
-    token = os.environ["GITHUB_TOKEN"]
-    url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{pr_number}"
-    log.info("GET %s (diff)", url)
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with _client() as client:
+        url = f"/repos/{owner}/{repo}/pulls/{pr_number}"
+        log.info("GET %s (diff)", url)
         resp = await client.get(
             url,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github.v3.diff",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
+            headers={"Accept": "application/vnd.github.v3.diff"},
         )
         resp.raise_for_status()
         return resp.text

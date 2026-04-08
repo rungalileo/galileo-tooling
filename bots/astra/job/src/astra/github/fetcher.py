@@ -7,11 +7,10 @@ from . import api
 log = logging.getLogger(__name__)
 
 
-async def fetch_pr_data(owner: str, repo: str, pr_number: int, output_dir: Path) -> dict[str, str]:
+async def fetch_pr_data(
+    owner: str, repo: str, pr_number: int, output_dir: Path, *, metadata: dict,
+) -> dict[str, str]:
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    log.info("Fetching PR metadata for %s/%s#%d", owner, repo, pr_number)
-    metadata = await api.get_pr_metadata(owner, repo, pr_number)
 
     log.info("Fetching PR comments")
     comments = await api.get_pr_comments(owner, repo, pr_number)

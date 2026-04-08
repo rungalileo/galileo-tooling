@@ -69,10 +69,10 @@ async def _fetch_shortcut_stories(
 
 
 async def _prepare_context_files(
-    owner: str, repo: str, pr_number: int, output_dir: Path,
+    owner: str, repo: str, pr_number: int, output_dir: Path, *, metadata: dict,
 ) -> dict[str, ContextFile]:
     log.info("Fetching PR data")
-    raw_paths = await fetch_pr_data(owner, repo, pr_number, output_dir)
+    raw_paths = await fetch_pr_data(owner, repo, pr_number, output_dir, metadata=metadata)
 
     context_files: dict[str, ContextFile] = {
         "diff": ContextFile(title="Pull request diff", path=raw_paths["diff"]),
@@ -119,7 +119,7 @@ async def cmd_review(args: argparse.Namespace) -> None:
         except OSError:
             log.warning("poetry install failed, continuing without it")
 
-    context_files = await _prepare_context_files(owner, repo, pr_number, output_dir)
+    context_files = await _prepare_context_files(owner, repo, pr_number, output_dir, metadata=metadata)
     log.info("PR data saved to %s", output_dir)
 
     log.info("Running review workflow")

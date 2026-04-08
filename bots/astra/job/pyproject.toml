@@ -10,8 +10,11 @@ astra = "astra.cli:main"
 
 [tool.poetry.dependencies]
 python = "^3.13"
-claude-agent-sdk = "*"
-httpx = "*"
+claude-agent-sdk = "^0.1.56"
+httpx = "^0.28.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0"
 
 [build-system]
 requires = ["poetry-core"]
