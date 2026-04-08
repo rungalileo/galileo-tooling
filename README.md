@@ -14,6 +14,8 @@ cd galileo-tooling
 
 ```
 galileo-tooling/
+├── bots/                      # Automated bot implementations
+│   └── astra/                 # Astra dev bot
 ├── skills/                    # Vercel skills framework package
 │   ├── skills/                # Individual skills (SKILL.md files)
 │   └── package.json           # Skills metadata
