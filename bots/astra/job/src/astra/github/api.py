@@ -112,7 +112,8 @@ def _format_review_body(review: dict) -> str:
     follow_ups = review.get("follow_ups", [])
     if follow_ups:
         lines.append("")
-        lines.append("## Follow-ups after merging")
+        lines.append("## Follow-ups")
+        lines.append("Suggested follow-up work that could be tracked as Shortcut stories:")
         for f in follow_ups:
             lines.append(f"- `{f['path']}:{f['start_line']}-{f['end_line']}`: {f['description']}")
 
