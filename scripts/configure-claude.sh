@@ -52,20 +52,24 @@ if (fs.existsSync(settingsFile)) {
 }
 if (!settings.mcpServers) settings.mcpServers = {};
 
-let added = [], skipped = [];
+let added = [], updated = [], unchanged = [];
 for (const [name, server] of Object.entries(newServers)) {
-  if (settings.mcpServers[name]) {
-    skipped.push(name + ' (already configured)');
-  } else {
+  if (!settings.mcpServers[name]) {
     settings.mcpServers[name] = server;
     added.push(name);
+  } else if (JSON.stringify(settings.mcpServers[name]) !== JSON.stringify(server)) {
+    settings.mcpServers[name] = server;
+    updated.push(name);
+  } else {
+    unchanged.push(name);
   }
 }
 
 fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n');
 for (const s of added) console.log('  + ' + s + ' → ~/.claude/settings.json');
-for (const s of skipped) console.log('  ~ ' + s + ' (skipped)');
-if (added.length === 0 && skipped.length === 0) console.log('  No MCP servers to merge.');
+for (const s of updated) console.log('  ~ ' + s + ' (updated)');
+for (const s of unchanged) console.log('  = ' + s + ' (unchanged)');
+if (added.length === 0 && updated.length === 0 && unchanged.length === 0) console.log('  No MCP servers to merge.');
 " "$MCP_FILE" "$SETTINGS_FILE"
 else
   echo "No .mcp.json found, skipping MCP merge."

@@ -48,20 +48,25 @@ if (fs.existsSync(mcpFile)) {
   }
 }
 
-// Merge: existing servers take priority (don't overwrite)
+// Merge: update servers that differ, add new ones
 let added = [];
-let skipped = [];
+let updated = [];
+let unchanged = [];
 for (const [name, server] of Object.entries(template.mcpServers)) {
-  if (existing.mcpServers[name]) {
-    skipped.push(name + ' (already configured)');
-  } else {
+  if (!existing.mcpServers[name]) {
     existing.mcpServers[name] = server;
     added.push(name);
+  } else if (JSON.stringify(existing.mcpServers[name]) !== JSON.stringify(server)) {
+    existing.mcpServers[name] = server;
+    updated.push(name);
+  } else {
+    unchanged.push(name);
   }
 }
 
 for (const s of added) console.log('  + ' + s);
-for (const s of skipped) console.log('  ~ ' + s);
+for (const s of updated) console.log('  ~ ' + s + ' (updated)');
+for (const s of unchanged) console.log('  = ' + s + ' (unchanged)');
 
 if (Object.keys(existing.mcpServers).length > 0) {
   fs.writeFileSync(mcpFile, JSON.stringify(existing, null, 2) + '\n');

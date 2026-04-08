@@ -36,6 +36,17 @@
       "env": {
         "FIGMA_ACCESS_TOKEN": "${FIGMA_ACCESS_TOKEN}"
       }
+    },
+    "shortcut": {
+      "type": "http",
+      "url": "https://mcp.shortcut.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${SHORTCUT_API_TOKEN}"
+      }
+    },
+    "clickhouse-docs": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://clickhouse.mcp.kapa.ai/"]
     }
   }
 }
