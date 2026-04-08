@@ -16,11 +16,11 @@
       }
     },
     "slack": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-slack@latest"],
-      "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
-        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+      "type": "http",
+      "url": "https://mcp.slack.com/mcp",
+      "oauth": {
+        "clientId": "1601185624273.8899143856786",
+        "callbackPort": 3118
       }
     },
     "coda": {
@@ -31,11 +31,8 @@
       }
     },
     "figma": {
-      "command": "npx",
-      "args": ["-y", "figma-developer-mcp", "--stdio"],
-      "env": {
-        "FIGMA_ACCESS_TOKEN": "${FIGMA_ACCESS_TOKEN}"
-      }
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
     },
     "shortcut": {
       "type": "http",
