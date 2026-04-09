@@ -86,5 +86,5 @@ The PR diff and metadata have been saved to local files. Their paths are provide
    Additional notes:
    - `suggestion` in line comments is optional — include it only when you can provide concrete replacement code.
    - `comment_responses` is for responding to existing unresolved review comments. Only include a response when there is a clear argument for rejecting the original comment, or when the issue has already been resolved (indicate how).
-   - `follow_ups` captures non-blocking improvement opportunities outside the PR's scope. These do not affect the verdict.
+   - `follow_ups` captures non-blocking improvement opportunities outside the PR's scope. These do not affect the verdict. Do not add a follow-up for items that already have a tracking ticket.
    - Each array can be empty if there are no entries of that type.
