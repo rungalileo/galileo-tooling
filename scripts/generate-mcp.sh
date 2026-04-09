@@ -13,7 +13,7 @@ echo "========================================="
 echo ""
 
 # Load .env if not already loaded (for standalone usage)
-if [ -z "${SENTRY_ACCESS_TOKEN:-}${LOGZIO_API_KEY:-}${SLACK_BOT_TOKEN:-}" ] && [ -f "$REPO_DIR/.env" ]; then
+if [ -z "${SENTRY_ACCESS_TOKEN:-}${LOGZIO_API_KEY:-}${SHORTCUT_API_TOKEN:-}" ] && [ -f "$REPO_DIR/.env" ]; then
   set -a
   source "$REPO_DIR/.env"
   set +a

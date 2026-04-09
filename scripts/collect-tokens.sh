@@ -49,17 +49,6 @@ fi
 
 echo ""
 echo "========================================="
-echo "  Slack (leave blank to skip)"
-echo "========================================="
-echo "  See mcp/slack.md for full setup instructions"
-echo ""
-prompt_if_empty SLACK_BOT_TOKEN "Slack bot token (xoxb-...)"
-if [ -n "${SLACK_BOT_TOKEN:-}" ]; then
-  prompt_if_empty SLACK_TEAM_ID "Slack team ID (T...)"
-fi
-
-echo ""
-echo "========================================="
 echo "  ClickHouse (leave blank to skip)"
 echo "========================================="
 echo ""
@@ -84,15 +73,6 @@ echo "  Create a token at: https://coda.io/account → API settings → Generate
 echo ""
 prompt_if_empty CODA_API_KEY "Coda API key"
 
-echo ""
-echo "========================================="
-echo "  Figma (leave blank to skip)"
-echo "========================================="
-echo "  Create a token at: https://www.figma.com/settings → Personal access tokens"
-echo "  Required scopes: File content (Read)"
-echo ""
-prompt_if_empty FIGMA_ACCESS_TOKEN "Figma personal access token"
-
 # Write .env
 cat > "$ENV_FILE" <<ENVEOF
 # Galileo Tooling — Environment Variables
@@ -105,10 +85,6 @@ SENTRY_ACCESS_TOKEN='${SENTRY_ACCESS_TOKEN:-}'
 LOGZIO_API_KEY='${LOGZIO_API_KEY:-}'
 LOGZIO_REGION='${LOGZIO_REGION:-}'
 
-# Slack
-SLACK_BOT_TOKEN='${SLACK_BOT_TOKEN:-}'
-SLACK_TEAM_ID='${SLACK_TEAM_ID:-}'
-
 # ClickHouse
 CLICKHOUSE_HOST='${CLICKHOUSE_HOST:-}'
 CLICKHOUSE_USER='${CLICKHOUSE_USER:-}'
@@ -120,8 +96,6 @@ SHORTCUT_API_TOKEN='${SHORTCUT_API_TOKEN:-}'
 # Coda
 CODA_API_KEY='${CODA_API_KEY:-}'
 
-# Figma
-FIGMA_ACCESS_TOKEN='${FIGMA_ACCESS_TOKEN:-}'
 ENVEOF
 
 echo ""

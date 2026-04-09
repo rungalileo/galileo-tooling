@@ -2,44 +2,25 @@
 
 ## Setup
 
-### 1. Create a Slack App
+Slack now uses Slack's official remote MCP server with OAuth authentication. No bot token or app creation is required.
 
-- Go to https://api.slack.com/apps and click **Create New App** → **From scratch**
-- Name it (e.g. "Claude Code") and select your workspace
+### How it works
 
-### 2. Add Bot Scopes
+The server connects to `https://mcp.slack.com/mcp` and authenticates via OAuth. On first use, Claude Code will open your browser to authorize access to your Slack workspace.
 
-- Go to **OAuth & Permissions** in the left sidebar
-- Under **Bot Token Scopes**, add:
-  - `channels:read`
-  - `channels:history`
-  - `chat:write`
-  - `users:read`
+### Configuration
 
-### 3. Install the App
-
-- Click **Install to Workspace** at the top of the OAuth & Permissions page
-- Authorize when prompted
-
-### 4. Copy your Bot Token
-
-- After installing, copy the **Bot User OAuth Token** (starts with `xoxb-`)
-
-### 5. Find your Team ID
-
-- Open Slack in a browser
-- Your URL will look like: `https://app.slack.com/client/T01ABCDEF/C01234...`
-- The `T...` portion is your Team ID
-
-### 6. Add to `.mcp.json`
+This is handled automatically by `setup.sh`. The template entry in `mcp/mcp.template.json` is:
 
 ```json
 "slack": {
-  "command": "npx",
-  "args": ["-y", "@anthropic/mcp-slack@latest"],
-  "env": {
-    "SLACK_BOT_TOKEN": "{YOUR_XOXB_TOKEN}",
-    "SLACK_TEAM_ID": "{YOUR_TEAM_ID}"
+  "type": "http",
+  "url": "https://mcp.slack.com/mcp",
+  "oauth": {
+    "clientId": "1601185624273.8899143856786",
+    "callbackPort": 3118
   }
 }
 ```
+
+No environment variables are needed.
