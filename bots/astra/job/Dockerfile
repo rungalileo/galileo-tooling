@@ -2,7 +2,7 @@ FROM debian:13-slim
 
 # Install pyenv build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl git ca-certificates \
+    build-essential curl git gpg ca-certificates \
     libbz2-dev libffi-dev liblzma-dev libncursesw5-dev \
     libreadline-dev libsqlite3-dev libssl-dev \
     libxml2-dev libxmlsec1-dev tk-dev xz-utils zlib1g-dev \
@@ -15,8 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (for JS/TS repo analysis)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+      | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+       > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Create astra user (UID 1000)
@@ -29,7 +32,7 @@ WORKDIR /home/astra
 ENV PYENV_ROOT="/home/astra/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 
-RUN curl https://pyenv.run | bash \
+RUN git clone --depth 1 --branch v2.6.27 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
     && pyenv install 3.13.12 \
     && pyenv global 3.13.12 \
     && pip install --upgrade pip \
