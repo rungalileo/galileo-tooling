@@ -138,7 +138,7 @@ async def cmd_review(args: argparse.Namespace) -> None:
         review_path.write_text(json.dumps(result.review, indent=2))
         log.info("Review written to %s", review_path)
         log.info("Publishing review to GitHub")
-        await publish_review(
+        submit_result = await publish_review(
             owner, repo, pr_number,
             commit_sha=metadata["head"]["sha"],
             review=result.review,
@@ -146,6 +146,8 @@ async def cmd_review(args: argparse.Namespace) -> None:
             diff_text=Path(context_files["diff"].path).read_text(),
         )
         log.info("Review published to GitHub")
+        review_url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
+        log.info("Review successfully published at %s", review_url)
 
     if result.trace:
         trace_path = output_dir / "trace.json"
