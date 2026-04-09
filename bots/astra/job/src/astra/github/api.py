@@ -389,11 +389,17 @@ async def publish_review(
                         comment_id, bot_user,
                     )
                     continue
-                reply_url = f"/repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies"
-                log.info("POST %s", reply_url)
-                resp = await client.post(reply_url, json={"body": cr["response"]})
-                resp.raise_for_status()
-                posted += 1
+                try:
+                    reply_url = f"/repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies"
+                    log.info("POST %s", reply_url)
+                    resp = await client.post(reply_url, json={"body": cr["response"]})
+                    resp.raise_for_status()
+                    posted += 1
+                except Exception:
+                    log.error(
+                        "Failed to post reply to comment %d",
+                        comment_id, exc_info=True,
+                    )
         log.info(
             "Posted %d comment response(s), skipped %d (already replied)",
             posted, len(comment_responses) - posted,
