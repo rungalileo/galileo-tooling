@@ -77,7 +77,6 @@ SEVERITY_EMOJI = {
     "major": "🟠",
     "minor": "🟡",
     "nit": "🔵",
-    "praise": "🟢",
 }
 
 
