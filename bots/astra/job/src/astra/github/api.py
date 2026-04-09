@@ -274,48 +274,70 @@ async def publish_review(
         log.info("Created pending review: %s", review_id)
 
         # Step 2: Add out-of-diff line comments individually
+        failed_individual = 0
         for it in individual_threads:
-            await _graphql(
-                """
-                mutation($input: AddPullRequestReviewThreadInput!) {
-                    addPullRequestReviewThread(input: $input) {
-                        thread { id }
+            try:
+                await _graphql(
+                    """
+                    mutation($input: AddPullRequestReviewThreadInput!) {
+                        addPullRequestReviewThread(input: $input) {
+                            thread { id }
+                        }
                     }
-                }
-                """,
-                {
-                    "input": {
-                        "pullRequestReviewId": review_id,
-                        **it,
+                    """,
+                    {
+                        "input": {
+                            "pullRequestReviewId": review_id,
+                            **it,
+                        },
                     },
-                },
-                client=client,
-            )
+                    client=client,
+                )
+            except Exception:
+                failed_individual += 1
+                log.error(
+                    "Failed to add out-of-diff comment on %s line %d",
+                    it["path"], it["line"], exc_info=True,
+                )
         if individual_threads:
-            log.info("Added %d out-of-diff line comment(s)", len(individual_threads))
+            log.info(
+                "Added %d out-of-diff line comment(s), %d failed",
+                len(individual_threads) - failed_individual, failed_individual,
+            )
 
         # Step 3: Add file-level comments
+        failed_file = 0
         for ft in file_threads:
-            await _graphql(
-                """
-                mutation($input: AddPullRequestReviewThreadInput!) {
-                    addPullRequestReviewThread(input: $input) {
-                        thread { id }
+            try:
+                await _graphql(
+                    """
+                    mutation($input: AddPullRequestReviewThreadInput!) {
+                        addPullRequestReviewThread(input: $input) {
+                            thread { id }
+                        }
                     }
-                }
-                """,
-                {
-                    "input": {
-                        "pullRequestReviewId": review_id,
-                        "path": ft["path"],
-                        "body": ft["body"],
-                        "subjectType": "FILE",
+                    """,
+                    {
+                        "input": {
+                            "pullRequestReviewId": review_id,
+                            "path": ft["path"],
+                            "body": ft["body"],
+                            "subjectType": "FILE",
+                        },
                     },
-                },
-                client=client,
-            )
+                    client=client,
+                )
+            except Exception:
+                failed_file += 1
+                log.error(
+                    "Failed to add file-level comment on %s",
+                    ft["path"], exc_info=True,
+                )
         if file_threads:
-            log.info("Added %d file-level comment(s)", len(file_threads))
+            log.info(
+                "Added %d file-level comment(s), %d failed",
+                len(file_threads) - failed_file, failed_file,
+            )
 
         # Step 4: Submit the review
         submit_result = await _graphql(

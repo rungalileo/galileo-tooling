@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 PROJECTS_DIR = Path.home() / "projects"
 
 
-async def _configure_git_auth() -> None:
+async def configure_git_auth() -> None:
     """Configure git to use GITHUB_TOKEN for all github.com HTTPS URLs."""
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
@@ -35,7 +35,6 @@ async def clone_pr_branch(
     download size while keeping full commit history for merge-base and
     log operations against the main branch.
     """
-    await _configure_git_auth()
     log.info("Cloning %s (branch: %s) into %s", repo_url, branch, dest)
 
     proc = await asyncio.create_subprocess_exec(
@@ -76,6 +75,7 @@ async def clone_pr(
     main_branch: str = "main",
 ) -> Path:
     """Clone a PR branch into ~/projects/{repo}."""
+    await configure_git_auth()
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 
     if repo_url is None:
