@@ -178,10 +178,10 @@ def _extract_comment_id(comment_url: str) -> int:
     raise ValueError(f"Cannot extract comment ID from URL: {comment_url}")
 
 
-async def _graphql(query: str, variables: dict) -> dict:
+async def _graphql(query: str, variables: dict, *, client: httpx.AsyncClient | None = None) -> dict:
     """Execute a GitHub GraphQL query."""
-    async with _client() as client:
-        resp = await client.post(
+    async def _execute(c: httpx.AsyncClient) -> dict:
+        resp = await c.post(
             "/graphql",
             json={"query": query, "variables": variables},
         )
@@ -190,6 +190,11 @@ async def _graphql(query: str, variables: dict) -> dict:
         if data.get("errors"):
             raise RuntimeError(f"GraphQL errors: {json.dumps(data['errors'])}")
         return data["data"]
+
+    if client is not None:
+        return await _execute(client)
+    async with _client() as c:
+        return await _execute(c)
 
 
 async def publish_review(
@@ -245,87 +250,93 @@ async def publish_review(
         len(threads), len(individual_threads), len(file_threads),
     )
 
-    # Step 1: Create pending review with in-diff line threads
-    create_result = await _graphql(
-        """
-        mutation($input: AddPullRequestReviewInput!) {
-            addPullRequestReview(input: $input) {
-                pullRequestReview { id }
-            }
-        }
-        """,
-        {
-            "input": {
-                "pullRequestId": pr_node_id,
-                "commitOID": commit_sha,
-                "threads": threads,
-            },
-        },
-    )
-    review_id = create_result["addPullRequestReview"]["pullRequestReview"]["id"]
-    log.info("Created pending review: %s", review_id)
-
-    # Step 2: Add out-of-diff line comments individually
-    for it in individual_threads:
-        await _graphql(
+    # Use a shared HTTP client for all GraphQL calls in this review
+    async with _client() as client:
+        # Step 1: Create pending review with in-diff line threads
+        create_result = await _graphql(
             """
-            mutation($input: AddPullRequestReviewThreadInput!) {
-                addPullRequestReviewThread(input: $input) {
-                    thread { id }
+            mutation($input: AddPullRequestReviewInput!) {
+                addPullRequestReview(input: $input) {
+                    pullRequestReview { id }
+                }
+            }
+            """,
+            {
+                "input": {
+                    "pullRequestId": pr_node_id,
+                    "commitOID": commit_sha,
+                    "threads": threads,
+                },
+            },
+            client=client,
+        )
+        review_id = create_result["addPullRequestReview"]["pullRequestReview"]["id"]
+        log.info("Created pending review: %s", review_id)
+
+        # Step 2: Add out-of-diff line comments individually
+        for it in individual_threads:
+            await _graphql(
+                """
+                mutation($input: AddPullRequestReviewThreadInput!) {
+                    addPullRequestReviewThread(input: $input) {
+                        thread { id }
+                    }
+                }
+                """,
+                {
+                    "input": {
+                        "pullRequestReviewId": review_id,
+                        **it,
+                    },
+                },
+                client=client,
+            )
+        if individual_threads:
+            log.info("Added %d out-of-diff line comment(s)", len(individual_threads))
+
+        # Step 3: Add file-level comments
+        for ft in file_threads:
+            await _graphql(
+                """
+                mutation($input: AddPullRequestReviewThreadInput!) {
+                    addPullRequestReviewThread(input: $input) {
+                        thread { id }
+                    }
+                }
+                """,
+                {
+                    "input": {
+                        "pullRequestReviewId": review_id,
+                        "path": ft["path"],
+                        "body": ft["body"],
+                        "subjectType": "FILE",
+                    },
+                },
+                client=client,
+            )
+        if file_threads:
+            log.info("Added %d file-level comment(s)", len(file_threads))
+
+        # Step 4: Submit the review
+        submit_result = await _graphql(
+            """
+            mutation($input: SubmitPullRequestReviewInput!) {
+                submitPullRequestReview(input: $input) {
+                    pullRequestReview { url }
                 }
             }
             """,
             {
                 "input": {
                     "pullRequestReviewId": review_id,
-                    **it,
+                    "event": "COMMENT",
+                    "body": body,
                 },
             },
+            client=client,
         )
-    if individual_threads:
-        log.info("Added %d out-of-diff line comment(s)", len(individual_threads))
-
-    # Step 3: Add file-level comments
-    for ft in file_threads:
-        await _graphql(
-            """
-            mutation($input: AddPullRequestReviewThreadInput!) {
-                addPullRequestReviewThread(input: $input) {
-                    thread { id }
-                }
-            }
-            """,
-            {
-                "input": {
-                    "pullRequestReviewId": review_id,
-                    "path": ft["path"],
-                    "body": ft["body"],
-                    "subjectType": "FILE",
-                },
-            },
-        )
-    if file_threads:
-        log.info("Added %d file-level comment(s)", len(file_threads))
-
-    # Step 4: Submit the review
-    submit_result = await _graphql(
-        """
-        mutation($input: SubmitPullRequestReviewInput!) {
-            submitPullRequestReview(input: $input) {
-                pullRequestReview { url }
-            }
-        }
-        """,
-        {
-            "input": {
-                "pullRequestReviewId": review_id,
-                "event": "COMMENT",
-                "body": body,
-            },
-        },
-    )
-    url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
-    log.info("Review submitted: %s", url)
+        url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
+        log.info("Review submitted: %s", url)
 
     # Step 5: Post responses to existing review comment threads
     comment_responses = review.get("comment_responses", [])

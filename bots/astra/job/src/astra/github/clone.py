@@ -84,7 +84,21 @@ async def clone_pr(
     dest = PROJECTS_DIR / repo
 
     if dest.exists():
-        log.info("Destination %s already exists, skipping clone", dest)
+        log.info("Destination %s already exists, checking out branch %s", dest, branch)
+        proc = await asyncio.create_subprocess_exec(
+            "git", "fetch", "--filter=blob:none", "origin", branch,
+            cwd=dest,
+        )
+        await proc.communicate()
+        if proc.returncode:
+            raise RuntimeError(f"git fetch failed with exit code {proc.returncode}")
+        proc = await asyncio.create_subprocess_exec(
+            "git", "checkout", branch,
+            cwd=dest,
+        )
+        await proc.communicate()
+        if proc.returncode:
+            raise RuntimeError(f"git checkout failed with exit code {proc.returncode}")
         return dest
 
     return await clone_pr_branch(repo_url, branch, dest, main_branch=main_branch)

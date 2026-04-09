@@ -105,7 +105,7 @@ async def cmd_review(args: argparse.Namespace) -> None:
     head_repo = metadata["head"].get("repo")
     if not head_repo:
         raise RuntimeError(
-            f"PR head repo is unavailable (deleted fork?). Cannot clone for review."
+            "PR head repo is unavailable (deleted fork?). Cannot clone for review."
         )
     repo_url = head_repo["clone_url"]
     main_branch = metadata["base"]["ref"]
