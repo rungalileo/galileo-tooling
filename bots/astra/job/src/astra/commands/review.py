@@ -133,6 +133,11 @@ async def cmd_review(args: argparse.Namespace) -> None:
         repo_dir=str(clone_path),
     )
 
+    if result.trace:
+        trace_path = output_dir / "trace.json"
+        trace_path.write_text(json.dumps(result.trace, indent=2, default=str))
+        log.info("Agent trace written to %s", trace_path)
+
     if result.review:
         review_path = output_dir / "review.json"
         review_path.write_text(json.dumps(result.review, indent=2))
@@ -148,11 +153,6 @@ async def cmd_review(args: argparse.Namespace) -> None:
         log.info("Review published to GitHub")
         review_url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
         log.info("Review successfully published at %s", review_url)
-
-    if result.trace:
-        trace_path = output_dir / "trace.json"
-        trace_path.write_text(json.dumps(result.trace, indent=2, default=str))
-        log.info("Agent trace written to %s", trace_path)
 
     if result.error:
         log.error("Workflow completed with error: %s", result.error)
