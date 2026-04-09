@@ -23,20 +23,37 @@ async def configure_git_auth() -> None:
         raise RuntimeError(f"git config failed with exit code {proc.returncode}")
 
 
-async def clone_pr_branch(
-    repo_url: str,
+async def clone_pr(
+    owner: str,
+    repo: str,
     branch: str,
-    dest: Path,
+    *,
+    repo_url: str | None = None,
     main_branch: str = "main",
 ) -> Path:
-    """Clone a PR branch with an optimized strategy for code review.
+    """Clone a PR branch into ~/projects/{repo}.
+
+    Each agent run is expected to start from a fresh container with no
+    existing clone. If the destination already exists, we raise rather
+    than try to reconcile state — it indicates an unexpected environment.
 
     Uses --single-branch, --filter=blob:none, and --no-tags to minimize
     download size while keeping full commit history for merge-base and
     log operations against the main branch.
     """
-    log.info("Cloning %s (branch: %s) into %s", repo_url, branch, dest)
+    await configure_git_auth()
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    if repo_url is None:
+        repo_url = f"https://github.com/{owner}/{repo}.git"
+
+    dest = PROJECTS_DIR / repo
+    if dest.exists():
+        raise RuntimeError(
+            f"Clone destination {dest} already exists; expected a fresh environment"
+        )
+
+    log.info("Cloning %s (branch: %s) into %s", repo_url, branch, dest)
     proc = await asyncio.create_subprocess_exec(
         "git", "clone",
         "--branch", branch,
@@ -64,41 +81,3 @@ async def clone_pr_branch(
 
     log.info("Clone complete: %s", dest)
     return dest
-
-
-async def clone_pr(
-    owner: str,
-    repo: str,
-    branch: str,
-    *,
-    repo_url: str | None = None,
-    main_branch: str = "main",
-) -> Path:
-    """Clone a PR branch into ~/projects/{repo}."""
-    await configure_git_auth()
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
-
-    if repo_url is None:
-        repo_url = f"https://github.com/{owner}/{repo}.git"
-
-    dest = PROJECTS_DIR / repo
-
-    if dest.exists():
-        log.info("Destination %s already exists, checking out branch %s", dest, branch)
-        proc = await asyncio.create_subprocess_exec(
-            "git", "fetch", "--filter=blob:none", "origin", branch,
-            cwd=dest,
-        )
-        await proc.communicate()
-        if proc.returncode:
-            raise RuntimeError(f"git fetch failed with exit code {proc.returncode}")
-        proc = await asyncio.create_subprocess_exec(
-            "git", "checkout", branch,
-            cwd=dest,
-        )
-        await proc.communicate()
-        if proc.returncode:
-            raise RuntimeError(f"git checkout failed with exit code {proc.returncode}")
-        return dest
-
-    return await clone_pr_branch(repo_url, branch, dest, main_branch=main_branch)
