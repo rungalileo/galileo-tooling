@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "astra-job"
+version = "0.1.0"
+description = "Astra job runner — agentic dev workflows for Galileo"
+authors = ["Fernando Correia"]
+packages = [{include = "astra", from = "src"}]
+
+[tool.poetry.scripts]
+astra = "astra.cli:main"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+claude-agent-sdk = "^0.1.56"
+httpx = "^0.28.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
