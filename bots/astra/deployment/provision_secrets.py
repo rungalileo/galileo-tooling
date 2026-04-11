@@ -5,17 +5,20 @@
 #     "google-cloud-secret-manager>=2.20",
 # ]
 # ///
-"""Provision GCP Secret Manager secrets for Astra GitHub App.
+"""Provision GCP Secret Manager secrets for Astra.
 
-Creates or updates three secrets:
-  - astra-webhook-secret: HMAC webhook secret
-  - astra-app-id: GitHub App ID
-  - astra-app-private-key: GitHub App private key (.pem)
+Creates or updates secrets in GCP Secret Manager. Only secrets that don't
+already exist require a value in the .env file.
 
-Reads credentials from a .env file in the current directory with:
-  ASTRA_WEBHOOK_SECRET=...
-  ASTRA_APP_ID=...
-  ASTRA_PEM_FILE=/path/to/key.pem
+.env variables:
+  ASTRA_WEBHOOK_SECRET=...          -> astra-webhook-secret
+  ASTRA_APP_ID=...                  -> astra-app-id
+  ASTRA_PEM_FILE=/path/to/key.pem  -> astra-app-private-key
+  ASTRA_ANTHROPIC_API_KEY=...       -> astra-anthropic-api-key
+  ASTRA_SHORTCUT_API_TOKEN=...      -> astra-shortcut-api-token (optional)
+
+If a secret already exists in GCP, the corresponding env var is not required.
+Set an env var to update an existing secret with a new version.
 
 Requires:
   - uv (https://docs.astral.sh/uv/)
@@ -36,13 +39,17 @@ from pathlib import Path
 from google.api_core import exceptions as gcp_exceptions
 from google.cloud import secretmanager
 
-SECRETS = {
-    "astra-webhook-secret": "HMAC webhook secret for validating GitHub webhook payloads",
-    "astra-app-id": "GitHub App ID (integer)",
-    "astra-app-private-key": "GitHub App private key (PEM)",
-}
-
-REQUIRED_ENV_VARS = ["ASTRA_WEBHOOK_SECRET", "ASTRA_APP_ID", "ASTRA_PEM_FILE"]
+# (secret_name, env_var, description, required)
+# "required" means the secret must exist after this script runs. If the secret
+# is not yet in GCP, the env var MUST be set. If it already exists, the env var
+# is optional (set it to update the value).
+SECRET_DEFS: list[tuple[str, str, str, bool]] = [
+    ("astra-webhook-secret", "ASTRA_WEBHOOK_SECRET", "HMAC webhook secret", True),
+    ("astra-app-id", "ASTRA_APP_ID", "GitHub App ID (integer)", True),
+    ("astra-app-private-key", "ASTRA_PEM_FILE", "GitHub App private key (PEM)", True),
+    ("astra-anthropic-api-key", "ASTRA_ANTHROPIC_API_KEY", "Anthropic API key for Claude Agent SDK", True),
+    ("astra-shortcut-api-token", "ASTRA_SHORTCUT_API_TOKEN", "Shortcut API token for story context", False),
+]
 
 LABEL = {"app": "astra"}
 
@@ -107,6 +114,20 @@ def verify_gcp_access(
         sys.exit(1)
 
 
+def secret_exists(
+    client: secretmanager.SecretManagerServiceClient,
+    project_id: str,
+    secret_id: str,
+) -> bool:
+    """Check if a secret already exists in Secret Manager."""
+    secret_path = f"projects/{project_id}/secrets/{secret_id}"
+    try:
+        client.get_secret(request={"name": secret_path})
+        return True
+    except gcp_exceptions.NotFound:
+        return False
+
+
 def create_or_update_secret(
     client: secretmanager.SecretManagerServiceClient,
     project_id: str,
@@ -146,43 +167,30 @@ def create_or_update_secret(
     return status
 
 
+def resolve_secret_value(env_var: str, value: str | None) -> bytes:
+    """Resolve an env var value to bytes, handling PEM files specially."""
+    if env_var == "ASTRA_PEM_FILE":
+        assert value is not None
+        pem_path = Path(value).expanduser()
+        if not pem_path.exists():
+            print(f"Error: PEM file not found: {pem_path}")
+            sys.exit(1)
+        pem_data = pem_path.read_bytes()
+        if not pem_data.startswith(b"-----BEGIN"):
+            print(f"Warning: {pem_path} doesn't look like a PEM file. Continuing anyway.")
+        return pem_data
+    assert value is not None
+    return value.encode()
+
+
 def main() -> None:
-    # --- Preflight checks (all before any GCP calls or prompts) ---
+    # --- Load .env (may be empty or absent if all secrets already exist) ---
 
-    # 1. Load .env
     dotenv_path = Path(".env")
-    if not dotenv_path.exists():
-        print("Error: .env file not found in current directory.")
-        print(f"Create a .env file with: {', '.join(REQUIRED_ENV_VARS)}")
-        sys.exit(1)
+    env = load_dotenv(dotenv_path) if dotenv_path.exists() else {}
 
-    env = load_dotenv(dotenv_path)
+    # --- Connect to GCP and check which secrets already exist ---
 
-    missing = [var for var in REQUIRED_ENV_VARS if not env.get(var)]
-    if missing:
-        print(f"Error: Missing variables in .env: {', '.join(missing)}")
-        sys.exit(1)
-
-    # 2. Validate values
-    webhook_secret = env["ASTRA_WEBHOOK_SECRET"]
-
-    app_id = env["ASTRA_APP_ID"]
-    try:
-        int(app_id)
-    except ValueError:
-        print(f"Error: ASTRA_APP_ID must be an integer, got: {app_id}")
-        sys.exit(1)
-
-    pem_path = Path(env["ASTRA_PEM_FILE"]).expanduser()
-    if not pem_path.exists():
-        print(f"Error: PEM file not found: {pem_path}")
-        sys.exit(1)
-
-    pem_data = pem_path.read_bytes()
-    if not pem_data.startswith(b"-----BEGIN"):
-        print(f"Warning: {pem_path} doesn't look like a PEM file. Continuing anyway.")
-
-    # 3. Verify GCP project and access
     project_id = get_active_project()
 
     print(f"\nGCP Project : {project_id}")
@@ -191,11 +199,67 @@ def main() -> None:
     verify_gcp_access(client, project_id)
     print("GCP access verified.")
 
+    print("\nChecking existing secrets...")
+    existing = set()
+    for secret_id, _, _, _ in SECRET_DEFS:
+        if secret_exists(client, project_id, secret_id):
+            existing.add(secret_id)
+            print(f"  {secret_id}: exists")
+        else:
+            print(f"  {secret_id}: not found")
+
+    # --- Validate env vars: only required for secrets that don't exist yet ---
+
+    # Validate ASTRA_APP_ID if provided
+    app_id_val = env.get("ASTRA_APP_ID")
+    if app_id_val:
+        try:
+            int(app_id_val)
+        except ValueError:
+            print(f"Error: ASTRA_APP_ID must be an integer, got: {app_id_val}")
+            sys.exit(1)
+
+    missing_required: list[str] = []
+    for secret_id, env_var, description, required in SECRET_DEFS:
+        has_value = bool(env.get(env_var))
+        already_exists = secret_id in existing
+        if required and not already_exists and not has_value:
+            missing_required.append(f"{env_var} (for {secret_id})")
+
+    if missing_required:
+        print(f"\nError: The following secrets don't exist in GCP and have no value in .env:")
+        for item in missing_required:
+            print(f"  - {item}")
+        print("\nEither set them in .env or create the secrets manually.")
+        sys.exit(1)
+
+    # --- Build list of secrets to create/update ---
+
+    secrets_to_provision: list[tuple[str, str, bytes]] = []  # (secret_id, description, data)
+    skipped: list[tuple[str, str]] = []  # (secret_id, reason)
+
+    for secret_id, env_var, description, required in SECRET_DEFS:
+        value = env.get(env_var)
+        if value:
+            data = resolve_secret_value(env_var, value)
+            secrets_to_provision.append((secret_id, description, data))
+        elif secret_id in existing:
+            skipped.append((secret_id, "already exists, no new value in .env"))
+        else:
+            skipped.append((secret_id, "not set in .env (optional)"))
+
+    if not secrets_to_provision:
+        print("\nAll secrets already exist and no new values provided. Nothing to do.")
+        sys.exit(0)
+
     # --- Confirm before proceeding ---
 
     print(f"\nThis will create or update the following secrets in project '{project_id}':\n")
-    for secret_id, description in SECRETS.items():
-        print(f"  - {secret_id}: {description}")
+    for secret_id, description, _ in secrets_to_provision:
+        action = "update" if secret_id in existing else "create"
+        print(f"  - {secret_id}: {description} ({action})")
+    for secret_id, reason in skipped:
+        print(f"  - {secret_id}: skipped ({reason})")
 
     print()
     confirm = input("Proceed? [y/N] ").strip().lower()
@@ -208,13 +272,7 @@ def main() -> None:
     print("\nProvisioning secrets...\n")
 
     results = {}
-    secrets_to_create = [
-        ("astra-webhook-secret", webhook_secret.encode()),
-        ("astra-app-id", app_id.encode()),
-        ("astra-app-private-key", pem_data),
-    ]
-
-    for secret_id, data in secrets_to_create:
+    for secret_id, _, data in secrets_to_provision:
         status = create_or_update_secret(client, project_id, secret_id, data)
         results[secret_id] = status
         print(f"  {secret_id}: {status}")

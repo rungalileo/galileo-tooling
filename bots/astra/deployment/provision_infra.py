@@ -48,7 +48,16 @@ SERVICE_ACCOUNTS = {
     "astra-job": "Astra Job Runner",
 }
 
-REQUIRED_SECRETS = ["astra-webhook-secret", "astra-app-id", "astra-app-private-key"]
+REQUIRED_SECRETS = [
+    "astra-webhook-secret",
+    "astra-app-id",
+    "astra-app-private-key",
+    "astra-anthropic-api-key",
+]
+
+OPTIONAL_SECRETS = [
+    "astra-shortcut-api-token",
+]
 
 # (service_account_name, secret_name)
 SECRET_IAM_BINDINGS = [
@@ -57,6 +66,8 @@ SECRET_IAM_BINDINGS = [
     ("astra-gateway", "astra-app-private-key"),
     ("astra-job", "astra-app-private-key"),
     ("astra-job", "astra-app-id"),
+    ("astra-job", "astra-anthropic-api-key"),
+    ("astra-job", "astra-shortcut-api-token"),
 ]
 
 # (service_account_name, role, scope_description)
@@ -148,8 +159,11 @@ def verify_gcp_access(project: str) -> None:
         sys.exit(1)
 
 
-def verify_secrets_exist(project: str) -> None:
-    """Verify that required secrets exist in Secret Manager."""
+def verify_secrets_exist(project: str) -> set[str]:
+    """Verify that required secrets exist in Secret Manager.
+
+    Returns the set of all secrets that exist (required + optional).
+    """
     missing = []
     for secret in REQUIRED_SECRETS:
         if not resource_exists(
@@ -161,6 +175,17 @@ def verify_secrets_exist(project: str) -> None:
         print(f"Error: Missing secrets in Secret Manager: {', '.join(missing)}")
         print("Run provision_secrets.py first to create them.")
         sys.exit(1)
+
+    existing = set(REQUIRED_SECRETS)
+    for secret in OPTIONAL_SECRETS:
+        if resource_exists(
+            ["secrets", "describe", secret, f"--project={project}"]
+        ):
+            existing.add(secret)
+        else:
+            print(f"  Note: Optional secret '{secret}' not found — skipping IAM binding.")
+
+    return existing
 
 
 def enable_apis(project: str, results: dict[str, list[tuple[str, str]]]) -> None:
@@ -241,12 +266,19 @@ def bind_project_iam(
 
 
 def bind_secret_iam(
-    project: str, results: dict[str, list[tuple[str, str]]]
+    project: str,
+    results: dict[str, list[tuple[str, str]]],
+    existing_secrets: set[str],
 ) -> None:
     """Add secret-level IAM bindings."""
     print("\n[5/7] Adding secret-level IAM bindings...\n")
     role = "roles/secretmanager.secretAccessor"
     for sa_name, secret in SECRET_IAM_BINDINGS:
+        if secret not in existing_secrets:
+            label = f"{sa_name} -> secretAccessor ({secret})"
+            results["IAM bindings"].append((label, "skipped (secret not provisioned)"))
+            print(f"  {label}: skipped (secret not provisioned)")
+            continue
         member = sa_member(sa_name, project)
         run_gcloud([
             "secrets", "add-iam-policy-binding", secret,
@@ -394,7 +426,7 @@ def main() -> None:
     print("GCP access verified.")
 
     print("Verifying secrets exist...")
-    verify_secrets_exist(project)
+    existing_secrets = verify_secrets_exist(project)
     print("Secrets verified.")
 
     # --- Confirm before proceeding ---
@@ -423,7 +455,7 @@ def main() -> None:
         create_artifact_registry(project, results)
         create_service_accounts(project, results)
         bind_project_iam(project, results)
-        bind_secret_iam(project, results)
+        bind_secret_iam(project, results, existing_secrets)
         bind_cloud_run_iam(project, results)
         create_task_queue(project, results)
     except subprocess.CalledProcessError as exc:
