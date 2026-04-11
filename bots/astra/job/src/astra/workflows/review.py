@@ -22,8 +22,14 @@ class ContextFile:
 
 _SEVERITY_ENUM = ["critical", "major", "minor", "nit"]
 _CATEGORY_ENUM = [
-    "bug", "security", "design", "performance",
-    "testing", "documentation", "question", "other",
+    "bug",
+    "security",
+    "design",
+    "performance",
+    "testing",
+    "documentation",
+    "question",
+    "other",
 ]
 
 _COMMENT_PROPERTIES = {
@@ -91,7 +97,14 @@ REVIEW_SCHEMA = {
                         "description": "Suggested replacement code, if applicable.",
                     },
                 },
-                "required": ["path", "start_line", "end_line", "severity", "category", "comment"],
+                "required": [
+                    "path",
+                    "start_line",
+                    "end_line",
+                    "severity",
+                    "category",
+                    "comment",
+                ],
             },
         },
         "comment_responses": {
@@ -128,9 +141,13 @@ REVIEW_SCHEMA = {
         },
     },
     "required": [
-        "verdict", "verdict_reason",
-        "pr_comments", "file_comments", "line_comments",
-        "comment_responses", "follow_ups",
+        "verdict",
+        "verdict_reason",
+        "pr_comments",
+        "file_comments",
+        "line_comments",
+        "comment_responses",
+        "follow_ups",
     ],
 }
 
@@ -175,7 +192,15 @@ async def run_review(
             prompt=user_prompt,
             options=ClaudeAgentOptions(
                 system_prompt=system_prompt,
-                allowed_tools=["Read", "Edit", "Write", "Bash", "Glob", "Grep", "Agent"],
+                allowed_tools=[
+                    "Read",
+                    "Edit",
+                    "Write",
+                    "Bash",
+                    "Glob",
+                    "Grep",
+                    "Agent",
+                ],
                 permission_mode="bypassPermissions",
                 cwd=repo_dir,
                 effort="high",
@@ -186,10 +211,12 @@ async def run_review(
                 max_budget_usd=5.00,
             ),
         ):
-            trace.append({
-                "type": type(message).__name__,
-                **asdict(message),
-            })
+            trace.append(
+                {
+                    "type": type(message).__name__,
+                    **asdict(message),
+                }
+            )
 
             if isinstance(message, AssistantMessage):
                 turn += 1
@@ -211,7 +238,9 @@ async def run_review(
                     message.subtype,
                     "Agent failed with unexpected status: {subtype} ({turns} turns, ${cost:.4f})",
                 )
-                error = error_template.format(subtype=message.subtype, turns=turns, cost=cost)
+                error = error_template.format(
+                    subtype=message.subtype, turns=turns, cost=cost
+                )
                 log.error(error)
 
     except Exception as exc:

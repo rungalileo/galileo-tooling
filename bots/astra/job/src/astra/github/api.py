@@ -5,6 +5,8 @@ import re
 
 import httpx
 
+from astra import BOT_USER
+
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://api.github.com"
@@ -25,7 +27,9 @@ def _client() -> httpx.AsyncClient:
     )
 
 
-async def _paginate(client: httpx.AsyncClient, url: str, *, max_pages: int = 100) -> list[dict]:
+async def _paginate(
+    client: httpx.AsyncClient, url: str, *, max_pages: int = 100
+) -> list[dict]:
     results: list[dict] = []
     page = 0
     while url:
@@ -39,16 +43,6 @@ async def _paginate(client: httpx.AsyncClient, url: str, *, max_pages: int = 100
         url = resp.links.get("next", {}).get("url")
         page += 1
     return results
-
-
-async def get_authenticated_user() -> str:
-    """Return the login of the user associated with the current GITHUB_TOKEN."""
-    async with _client() as client:
-        url = "/user"
-        log.info("GET %s", url)
-        resp = await client.get(url)
-        resp.raise_for_status()
-        return resp.json()["login"]
 
 
 async def get_pr_metadata(owner: str, repo: str, pr_number: int) -> dict:
@@ -98,23 +92,28 @@ def _format_review_body(review: dict) -> str:
     ]
 
     pr_comments = [
-        c for c in review.get("pr_comments", [])
-        if c["severity"] != "praise"
+        c for c in review.get("pr_comments", []) if c["severity"] != "praise"
     ]
     if pr_comments:
         lines.append("")
         lines.append("## General Comments")
         for c in pr_comments:
             emoji = SEVERITY_EMOJI.get(c["severity"], "")
-            lines.append(f"- **{emoji} {c['severity']}** ({c['category']}): {c['comment']}")
+            lines.append(
+                f"- **{emoji} {c['severity']}** ({c['category']}): {c['comment']}"
+            )
 
     follow_ups = review.get("follow_ups", [])
     if follow_ups:
         lines.append("")
         lines.append("## Follow-ups")
-        lines.append("Suggested follow-up work that could be tracked as Shortcut stories:")
+        lines.append(
+            "Suggested follow-up work that could be tracked as Shortcut stories:"
+        )
         for f in follow_ups:
-            lines.append(f"- `{f['path']}:{f['start_line']}-{f['end_line']}`: {f['description']}")
+            lines.append(
+                f"- `{f['path']}:{f['start_line']}-{f['end_line']}`: {f['description']}"
+            )
 
     return "\n".join(lines)
 
@@ -178,8 +177,11 @@ def _extract_comment_id(comment_url: str) -> int:
     raise ValueError(f"Cannot extract comment ID from URL: {comment_url}")
 
 
-async def _graphql(query: str, variables: dict, *, client: httpx.AsyncClient | None = None) -> dict:
+async def _graphql(
+    query: str, variables: dict, *, client: httpx.AsyncClient | None = None
+) -> dict:
     """Execute a GitHub GraphQL query."""
+
     async def _execute(c: httpx.AsyncClient) -> dict:
         resp = await c.post(
             "/graphql",
@@ -231,7 +233,8 @@ async def publish_review(
         else:
             log.info(
                 "Line %d not in diff, will add individually: %s",
-                c["end_line"], c["path"],
+                c["end_line"],
+                c["path"],
             )
             individual_threads.append(thread)
 
@@ -240,14 +243,18 @@ async def publish_review(
     for c in review.get("file_comments", []):
         if c["severity"] == "praise":
             continue
-        file_threads.append({
-            "path": c["path"],
-            "body": _comment_body(c),
-        })
+        file_threads.append(
+            {
+                "path": c["path"],
+                "body": _comment_body(c),
+            }
+        )
 
     log.info(
         "Publishing review via GraphQL (%d in-diff, %d out-of-diff, %d file)",
-        len(threads), len(individual_threads), len(file_threads),
+        len(threads),
+        len(individual_threads),
+        len(file_threads),
     )
 
     # Use a shared HTTP client for all GraphQL calls in this review
@@ -297,12 +304,15 @@ async def publish_review(
                 failed_individual += 1
                 log.error(
                     "Failed to add out-of-diff comment on %s line %d",
-                    it["path"], it["line"], exc_info=True,
+                    it["path"],
+                    it["line"],
+                    exc_info=True,
                 )
         if individual_threads:
             log.info(
                 "Added %d out-of-diff line comment(s), %d failed",
-                len(individual_threads) - failed_individual, failed_individual,
+                len(individual_threads) - failed_individual,
+                failed_individual,
             )
 
         # Step 3: Add file-level comments
@@ -331,12 +341,14 @@ async def publish_review(
                 failed_file += 1
                 log.error(
                     "Failed to add file-level comment on %s",
-                    ft["path"], exc_info=True,
+                    ft["path"],
+                    exc_info=True,
                 )
         if file_threads:
             log.info(
                 "Added %d file-level comment(s), %d failed",
-                len(file_threads) - failed_file, failed_file,
+                len(file_threads) - failed_file,
+                failed_file,
             )
 
         # Step 4: Submit the review
@@ -363,7 +375,7 @@ async def publish_review(
     # Step 5: Post responses to existing review comment threads
     comment_responses = review.get("comment_responses", [])
     if comment_responses:
-        bot_user = await get_authenticated_user()
+        bot_user = BOT_USER
         existing_comments = await get_pr_review_comments(owner, repo, pr_number)
 
         # Build a map of comment_id -> set of users in that thread
@@ -386,7 +398,8 @@ async def publish_review(
                 if bot_user in users_in_thread:
                     log.info(
                         "Skipping reply to comment %d — %s already in thread",
-                        comment_id, bot_user,
+                        comment_id,
+                        bot_user,
                     )
                     continue
                 try:
@@ -398,14 +411,48 @@ async def publish_review(
                 except Exception:
                     log.error(
                         "Failed to post reply to comment %d",
-                        comment_id, exc_info=True,
+                        comment_id,
+                        exc_info=True,
                     )
         log.info(
             "Posted %d comment response(s), skipped %d (already replied)",
-            posted, len(comment_responses) - posted,
+            posted,
+            len(comment_responses) - posted,
         )
 
     return submit_result
+
+
+async def add_reaction(
+    owner: str,
+    repo: str,
+    comment_id: int,
+    reaction: str,
+) -> None:
+    """Add a reaction emoji to an issue comment."""
+    async with _client() as client:
+        url = f"/repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
+        log.info("POST %s (%s)", url, reaction)
+        resp = await client.post(url, json={"content": reaction})
+        resp.raise_for_status()
+
+
+async def post_error_comment(
+    owner: str,
+    repo: str,
+    pr_number: int,
+    error: str,
+) -> None:
+    """Post an error comment on a PR."""
+    body = (
+        "> ⚠️ **Astra encountered an error while reviewing this PR.**\n\n"
+        f"```\n{error}\n```"
+    )
+    async with _client() as client:
+        url = f"/repos/{owner}/{repo}/issues/{pr_number}/comments"
+        log.info("POST %s (error comment)", url)
+        resp = await client.post(url, json={"body": body})
+        resp.raise_for_status()
 
 
 async def get_pr_diff(owner: str, repo: str, pr_number: int) -> str:

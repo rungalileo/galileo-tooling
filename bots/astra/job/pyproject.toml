@@ -12,9 +12,13 @@ astra = "astra.cli:main"
 python = "^3.13"
 claude-agent-sdk = "^0.1.56"
 httpx = "^0.28.1"
+cryptography = ">=46.0.7"
+PyJWT = {version = "^2.12", extras = ["crypto"]}
+astra-shared = {path = "../shared", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0"
+ruff = "^0.11"
 
 [build-system]
 requires = ["poetry-core"]

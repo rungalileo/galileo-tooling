@@ -27,7 +27,9 @@ def extract_story_id(story_url_or_id: str) -> int:
     path = parsed.path.rstrip("/")
     match = re.match(r"^/[^/]+/story/(\d+)(?:/[^/]+)?$", path)
     if not match:
-        raise ValueError(f"Could not extract Shortcut story ID from: {story_url_or_id!r}")
+        raise ValueError(
+            f"Could not extract Shortcut story ID from: {story_url_or_id!r}"
+        )
     return int(match.group(1))
 
 

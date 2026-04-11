@@ -13,8 +13,11 @@ async def configure_git_auth() -> None:
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return
+    # Persists the token in ~/.gitconfig — acceptable because this runs in an ephemeral container.
     proc = await asyncio.create_subprocess_exec(
-        "git", "config", "--global",
+        "git",
+        "config",
+        "--global",
         f"url.https://x-access-token:{token}@github.com/.insteadOf",
         "https://github.com/",
     )
@@ -55,8 +58,10 @@ async def clone_pr(
 
     log.info("Cloning %s (branch: %s) into %s", repo_url, branch, dest)
     proc = await asyncio.create_subprocess_exec(
-        "git", "clone",
-        "--branch", branch,
+        "git",
+        "clone",
+        "--branch",
+        branch,
         "--single-branch",
         "--filter=blob:none",
         "--no-tags",
@@ -69,7 +74,8 @@ async def clone_pr(
 
     log.info("Fetching %s for comparison", main_branch)
     proc = await asyncio.create_subprocess_exec(
-        "git", "fetch",
+        "git",
+        "fetch",
         "--filter=blob:none",
         "origin",
         f"{main_branch}:refs/remotes/origin/{main_branch}",
