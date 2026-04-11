@@ -13,6 +13,7 @@ async def configure_git_auth() -> None:
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return
+    # Persists the token in ~/.gitconfig — acceptable because this runs in an ephemeral container.
     proc = await asyncio.create_subprocess_exec(
         "git", "config", "--global",
         f"url.https://x-access-token:{token}@github.com/.insteadOf",
