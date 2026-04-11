@@ -25,7 +25,7 @@ sequenceDiagram
     participant Job as astra-job<br/>(Cloud Run Job)
     participant Claude as Claude API
 
-    User->>GitHub: Comment "/astra deep-review" on PR
+    User->>GitHub: Comment "/astra review" on PR
 
     Note over GitHub,Gateway: 1st gateway invocation (POST /webhook)
     GitHub->>Gateway: Webhook (issue_comment event)
