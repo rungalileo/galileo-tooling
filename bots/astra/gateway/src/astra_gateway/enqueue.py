@@ -6,6 +6,8 @@ from google.cloud import tasks_v2
 
 log = logging.getLogger(__name__)
 
+_tasks_client = tasks_v2.CloudTasksAsyncClient()
+
 
 async def enqueue_task(payload: dict) -> None:
     """Enqueue a Cloud Tasks HTTP task targeting the gateway's /dispatch route."""
@@ -15,8 +17,7 @@ async def enqueue_task(payload: dict) -> None:
     gateway_url = os.environ["GATEWAY_URL"]
     gateway_sa = os.environ["GATEWAY_SA_EMAIL"]
 
-    client = tasks_v2.CloudTasksAsyncClient()
-    parent = client.queue_path(project, region, queue)
+    parent = _tasks_client.queue_path(project, region, queue)
 
     owner = payload["repo_owner"]
     repo = payload["repo_name"]
@@ -25,7 +26,7 @@ async def enqueue_task(payload: dict) -> None:
     task_id = f"{owner}-{repo}-pr{pr_number}-c{comment_id}"
 
     task = tasks_v2.Task(
-        name=client.task_path(project, region, queue, task_id),
+        name=_tasks_client.task_path(project, region, queue, task_id),
         http_request=tasks_v2.HttpRequest(
             http_method=tasks_v2.HttpMethod.POST,
             url=f"{gateway_url}/dispatch",
@@ -38,5 +39,5 @@ async def enqueue_task(payload: dict) -> None:
         ),
     )
 
-    await client.create_task(request={"parent": parent, "task": task})
+    await _tasks_client.create_task(request={"parent": parent, "task": task})
     log.info("Enqueued task %s", task_id)

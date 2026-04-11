@@ -45,11 +45,8 @@ class TestDispatchAuth:
 class TestDispatchHappyPath:
     @patch.dict("os.environ", ENV)
     @patch("astra_gateway.dispatch.validate_oidc_token", new_callable=AsyncMock, return_value=True)
-    @patch("astra_gateway.dispatch.run_v2.JobsAsyncClient")
-    def test_valid_request_starts_job(self, mock_jobs_cls, mock_oidc):
-        mock_client = MagicMock()
-        mock_jobs_cls.return_value = mock_client
-
+    @patch("astra_gateway.dispatch._jobs_client")
+    def test_valid_request_starts_job(self, mock_client, mock_oidc):
         mock_operation = MagicMock()
         mock_operation.metadata.name = "projects/p/locations/r/jobs/j/executions/e"
         mock_client.run_job = AsyncMock(return_value=mock_operation)

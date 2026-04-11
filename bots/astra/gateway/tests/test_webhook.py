@@ -170,7 +170,7 @@ class TestWebhookHappyPath:
         mock_client.post.return_value = reaction_response
         mock_client_cls.return_value = mock_client
 
-        payload = _issue_comment_payload("/astra deep-review")
+        payload = _issue_comment_payload("/astra review")
         body = json.dumps(payload).encode()
 
         resp = client.post(
@@ -190,4 +190,4 @@ class TestWebhookHappyPath:
         assert task_payload["repo_name"] == "myrepo"
         assert task_payload["pr_number"] == 42
         assert task_payload["head_sha"] == "abc123"
-        assert task_payload["command"] == "deep-review"
+        assert task_payload["command"] == "review"

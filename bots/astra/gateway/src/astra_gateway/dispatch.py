@@ -11,6 +11,8 @@ log = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_jobs_client = run_v2.JobsAsyncClient()
+
 
 @router.post("/dispatch")
 async def handle_dispatch(request: Request) -> JSONResponse:
@@ -51,7 +53,6 @@ async def handle_dispatch(request: Request) -> JSONResponse:
     region = os.environ.get("GCP_REGION", "us-west1")
     job_name = os.environ.get("ASTRA_JOB_NAME", "astra-job")
 
-    client = run_v2.JobsAsyncClient()
     job_path = f"projects/{project}/locations/{region}/jobs/{job_name}"
 
     override = run_v2.RunJobRequest.Overrides(
@@ -76,7 +77,7 @@ async def handle_dispatch(request: Request) -> JSONResponse:
         ],
     )
 
-    operation = await client.run_job(
+    operation = await _jobs_client.run_job(
         run_v2.RunJobRequest(name=job_path, overrides=override),
     )
     execution_name = operation.metadata.name
