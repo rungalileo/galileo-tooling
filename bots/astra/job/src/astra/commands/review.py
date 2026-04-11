@@ -8,7 +8,13 @@ import time
 from pathlib import Path
 
 from astra.github import parse_pr_url
-from astra.github.api import add_reaction, get_pr_metadata, post_error_comment, publish_review
+from astra.github.api import (
+    add_reaction,
+    get_authenticated_user,
+    get_pr_metadata,
+    post_error_comment,
+    publish_review,
+)
 from astra.github.clone import clone_pr
 from astra.github.fetcher import fetch_pr_data
 from astra.shortcut.api import extract_shortcut_urls, get_story
@@ -145,6 +151,9 @@ async def _run_review(
     timestamp = f"{time.time_ns() // 1_000_000}"
     output_dir = Path(".output") / owner / repo / str(pr_number) / timestamp
 
+    log.info("Resolving bot identity")
+    bot_user = await get_authenticated_user()
+
     log.info("Fetching PR metadata")
     metadata = await get_pr_metadata(owner, repo, pr_number)
     branch = metadata["head"]["ref"]
@@ -204,6 +213,7 @@ async def _run_review(
             review=result.review,
             pr_node_id=metadata["node_id"],
             diff_text=Path(context_files["diff"].path).read_text(),
+            bot_user=bot_user,
         )
         log.info("Review published to GitHub")
         review_url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
