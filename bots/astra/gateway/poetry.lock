@@ -43,6 +43,24 @@ idna = ">=2.8"
 trio = ["trio (>=0.32.0)"]
 
 [[package]]
+name = "astra-shared"
+version = "0.1.0"
+description = "Shared utilities for Astra gateway and job"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+httpx = "^0.28"
+PyJWT = {version = "^2.12", extras = ["crypto"]}
+
+[package.source]
+type = "directory"
+url = "../shared"
+
+[[package]]
 name = "certifi"
 version = "2026.2.25"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -1626,4 +1644,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "cd0bf4855ecb268cc53ce8b8f2b317696614f7f158711bc516e6a3d0f9e4fa50"
+content-hash = "b50c25191fa6d829373717704eef0ab2d9042af0ef445bbdf160b74f4fcc5509"

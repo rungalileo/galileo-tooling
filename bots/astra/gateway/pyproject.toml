@@ -11,6 +11,7 @@ fastapi = "^0.135"
 uvicorn = {version = "^0.44", extras = ["standard"]}
 httpx = "^0.28"
 PyJWT = {version = "^2.12", extras = ["crypto"]}
+astra-shared = {path = "../shared", develop = true}
 google-cloud-tasks = "^2.22"
 google-cloud-run = "^0.16"
 google-auth = "^2.49"

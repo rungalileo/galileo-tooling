@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "astra-shared"
+version = "0.1.0"
+description = "Shared utilities for Astra gateway and job"
+authors = ["Fernando Correia"]
+packages = [{include = "astra_shared", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+httpx = "^0.28"
+PyJWT = {version = "^2.12", extras = ["crypto"]}
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

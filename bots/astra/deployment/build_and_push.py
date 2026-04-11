@@ -89,7 +89,6 @@ def image_ref(project: str, name: str, tag: str) -> str:
 
 def build_image(project: str, name: str, context_dir: str, tags: list[str]) -> None:
     """Build a Docker image with multiple tags."""
-    context = ASTRA_ROOT / context_dir
     tag_args = []
     for tag in tags:
         tag_args.extend(["-t", image_ref(project, name, tag)])
@@ -97,8 +96,8 @@ def build_image(project: str, name: str, context_dir: str, tags: list[str]) -> N
         "docker", "build",
         "--platform", "linux/amd64",
         *tag_args,
-        "-f", str(context / "Dockerfile"),
-        str(context),
+        "-f", str(ASTRA_ROOT / context_dir / "Dockerfile"),
+        str(ASTRA_ROOT),
     ]
     print(f"  $ {' '.join(cmd)}")
     subprocess.run(cmd, check=True)

@@ -40,7 +40,8 @@ RUN git clone --depth 1 --branch v2.6.27 https://github.com/pyenv/pyenv.git "$PY
 
 # Install poetry and project dependencies (before src copy for caching)
 WORKDIR /home/astra/astra-job
-COPY --chown=astra:astra pyproject.toml poetry.lock ./
+COPY --chown=astra:astra shared/ /home/astra/shared/
+COPY --chown=astra:astra job/pyproject.toml job/poetry.lock ./
 RUN pip install poetry \
     && poetry config virtualenvs.create false \
     && poetry install --no-root --no-directory
@@ -70,7 +71,7 @@ RUN printf '%s\n' \
     > /home/astra/available-binaries.md
 
 # Copy source and install project
-COPY --chown=astra:astra src/ ./src/
+COPY --chown=astra:astra job/src/ ./src/
 RUN poetry install && pyenv rehash
 
 ENTRYPOINT ["astra"]

@@ -6,12 +6,8 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from astra_gateway.auth import (
-    generate_jwt,
-    mint_installation_token,
-    validate_oidc_token,
-    validate_webhook_signature,
-)
+from astra_gateway.auth import validate_oidc_token, validate_webhook_signature
+from astra_shared.github_auth import generate_jwt, mint_installation_token
 
 # -- Test key pair for RS256 --
 _private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -82,7 +78,7 @@ class TestMintInstallationToken:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("astra_gateway.auth.httpx.AsyncClient", return_value=mock_client):
+        with patch("astra_shared.github_auth.httpx.AsyncClient", return_value=mock_client):
             token = await mint_installation_token("123", TEST_PRIVATE_KEY_PEM, 456)
 
         assert token == "ghs_test123"
