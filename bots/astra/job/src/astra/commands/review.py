@@ -92,7 +92,22 @@ async def _prepare_context_files(
     return context_files
 
 
+async def _ensure_github_token() -> None:
+    """If running via GitHub App, mint an installation token and set GITHUB_TOKEN."""
+    installation_id = os.environ.get("ASTRA_INSTALLATION_ID")
+    if not installation_id:
+        return
+    from astra.github.auth import mint_installation_token
+
+    app_id = os.environ["ASTRA_APP_ID"]
+    private_key = os.environ["ASTRA_APP_PRIVATE_KEY"]
+    token = await mint_installation_token(app_id, private_key, int(installation_id))
+    os.environ["GITHUB_TOKEN"] = token
+    log.info("Minted installation token for installation %s", installation_id)
+
+
 async def cmd_review(args: argparse.Namespace) -> None:
+    await _ensure_github_token()
     owner, repo, pr_number = parse_pr_url(args.pr_url)
     log.info("PR: %s/%s#%d", owner, repo, pr_number)
 

@@ -14,16 +14,58 @@ A CLI wrapping Claude Agent SDK workflows with Galileo-specific skills, tools an
 
 The CLI is activated through an asynchronous command pipeline and runs in sandbox containers via GCP Cloud Tasks.
 
+## Architecture
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GitHub
+    participant Gateway as astra-gateway
+    participant Queue as astra-task-queue<br/>(Cloud Tasks)
+    participant Job as astra-job<br/>(Cloud Run Job)
+    participant Claude as Claude API
+
+    User->>GitHub: Comment "/astra deep-review" on PR
+
+    Note over GitHub,Gateway: 1st gateway invocation (POST /webhook)
+    GitHub->>Gateway: Webhook (issue_comment event)
+    Gateway->>Gateway: Validate HMAC signature
+    Gateway->>Gateway: Parse command, extract PR metadata
+    Gateway->>GitHub: Mint installation token, fetch head SHA
+    Gateway->>GitHub: Add 👀 reaction (acknowledged)
+    Gateway->>Queue: Enqueue task (repo, PR#, command, SHA)
+    Gateway-->>GitHub: 200 OK (< 10s)
+
+    Note over Queue,Gateway: 2nd gateway invocation (POST /dispatch)
+    Queue->>Gateway: Deliver task with OIDC token
+    Gateway->>Gateway: Validate OIDC token
+    Gateway->>Job: Start execution (container overrides)
+    Gateway-->>Queue: 200 OK
+
+    Note over Job,GitHub: Job runs in fresh container
+    Job->>Job: Mint GitHub installation token
+    Job->>GitHub: Fetch PR diff & changed files
+    Job->>Claude: Run agentic workflow
+    Claude-->>Job: Review results
+    Job->>GitHub: Post review comments
+    Job->>Job: Exit 0
+```
+
 ## Directory Structure
 
 ```
 astra/
 ├── assets/                  # Logo and static assets
 ├── deployment/              # Deployment and provisioning scripts
-└── job/                     # Main application package
+├── gateway/                 # Webhook receiver + task dispatcher (Cloud Run service)
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   ├── src/astra_gateway/
+│   └── tests/
+└── job/                     # Agentic workflow runner (Cloud Run job)
     ├── Dockerfile
     ├── pyproject.toml
-    ├── src/astra/           # Application source code
+    ├── src/astra/
     └── tests/
 ```
 
