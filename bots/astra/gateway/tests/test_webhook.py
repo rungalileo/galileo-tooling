@@ -3,6 +3,8 @@ import hmac
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -191,3 +193,57 @@ class TestWebhookHappyPath:
         assert task_payload["pr_number"] == 42
         assert task_payload["head_sha"] == "abc123"
         assert task_payload["command"] == "review"
+
+
+class TestWebhookHeadShaFailure:
+    @patch.dict("os.environ", ENV)
+    @patch("astra_gateway.webhook.enqueue_task")
+    @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
+    @patch("astra_gateway.webhook.httpx.AsyncClient")
+    def test_head_sha_failure_posts_error_and_confused_reaction(
+        self, mock_client_cls, mock_mint, mock_enqueue, client,
+    ):
+        mock_mint.return_value = "ghs_token"
+
+        # First client: GET raises HTTPStatusError
+        mock_client_fail = AsyncMock()
+        mock_client_fail.__aenter__ = AsyncMock(return_value=mock_client_fail)
+        mock_client_fail.__aexit__ = AsyncMock(return_value=False)
+
+        error_response = MagicMock(spec=httpx.Response)
+        error_response.status_code = 404
+        mock_client_fail.get.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=MagicMock(), response=error_response,
+        )
+
+        # Second client: error recovery posts
+        mock_client_recover = AsyncMock()
+        mock_client_recover.__aenter__ = AsyncMock(return_value=mock_client_recover)
+        mock_client_recover.__aexit__ = AsyncMock(return_value=False)
+        mock_client_recover.post.return_value = MagicMock()
+
+        mock_client_cls.side_effect = [mock_client_fail, mock_client_recover]
+
+        payload = _issue_comment_payload("/astra review")
+        body = json.dumps(payload).encode()
+
+        resp = client.post(
+            "/webhook",
+            content=body,
+            headers={
+                "X-Hub-Signature-256": _sign(body),
+                "X-GitHub-Event": "issue_comment",
+            },
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["error"] == "failed to fetch PR head SHA"
+        mock_enqueue.assert_not_called()
+
+        # Verify error comment and confused reaction were posted
+        assert mock_client_recover.post.call_count == 2
+        comment_call, reaction_call = mock_client_recover.post.call_args_list
+        assert "/issues/42/comments" in comment_call.args[0]
+        assert "404" in comment_call.kwargs["json"]["body"]
+        assert "/issues/comments/99/reactions" in reaction_call.args[0]
+        assert reaction_call.kwargs["json"]["content"] == "confused"

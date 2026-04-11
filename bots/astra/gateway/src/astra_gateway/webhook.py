@@ -98,27 +98,42 @@ async def handle_webhook(request: Request) -> JSONResponse:
             )
         return JSONResponse({"ok": True, "command": "help"})
 
-    async with httpx.AsyncClient() as client:
-        # 9. Fetch head SHA
-        pr_url = payload["issue"]["pull_request"]["url"]
-        resp = await client.get(pr_url, headers=_github_headers(token))
-        resp.raise_for_status()
-        head_sha = resp.json()["head"]["sha"]
+    try:
+        async with httpx.AsyncClient() as client:
+            # 9. Fetch head SHA
+            pr_url = payload["issue"]["pull_request"]["url"]
+            resp = await client.get(pr_url, headers=_github_headers(token))
+            resp.raise_for_status()
+            head_sha = resp.json()["head"]["sha"]
 
-        # 10. Add eyes reaction (non-critical)
-        try:
-            reaction_resp = await client.post(
+            # 10. Add eyes reaction (non-critical)
+            try:
+                reaction_resp = await client.post(
+                    f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
+                    headers=_github_headers(token),
+                    json={"content": "eyes"},
+                )
+                if not reaction_resp.is_success:
+                    log.warning(
+                        "Failed to add eyes reaction: %d %s",
+                        reaction_resp.status_code, reaction_resp.text,
+                    )
+            except Exception:
+                log.warning("Failed to add eyes reaction", exc_info=True)
+    except httpx.HTTPStatusError as exc:
+        log.error("Failed to fetch PR head SHA: %s", exc)
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                headers=_github_headers(token),
+                json={"body": f"Failed to process command: could not fetch PR metadata ({exc.response.status_code})."},
+            )
+            await client.post(
                 f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
                 headers=_github_headers(token),
-                json={"content": "eyes"},
+                json={"content": "confused"},
             )
-            if not reaction_resp.is_success:
-                log.warning(
-                    "Failed to add eyes reaction: %d %s",
-                    reaction_resp.status_code, reaction_resp.text,
-                )
-        except Exception:
-            log.warning("Failed to add eyes reaction", exc_info=True)
+        return JSONResponse({"error": "failed to fetch PR head SHA"})
 
     # 11. Enqueue Cloud Task
     await enqueue_task({
