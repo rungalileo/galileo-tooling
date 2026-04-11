@@ -5,6 +5,8 @@ import re
 
 import httpx
 
+from astra import BOT_USER
+
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://api.github.com"
@@ -40,13 +42,6 @@ async def _paginate(client: httpx.AsyncClient, url: str, *, max_pages: int = 100
         page += 1
     return results
 
-
-BOT_USER = "galileo-astra[bot]"
-
-
-async def get_authenticated_user() -> str:
-    """Return the bot login for the GitHub App."""
-    return BOT_USER
 
 
 async def get_pr_metadata(owner: str, repo: str, pr_number: int) -> dict:
