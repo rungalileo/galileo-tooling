@@ -155,6 +155,7 @@ After the first deploy, update the GitHub App webhook URL to the gateway URL pri
 
 | Resource | URL |
 |---|---|
+| App Public Page | https://github.com/apps/galileo-astra |
 | App Settings | https://github.com/organizations/rungalileo/settings/apps/galileo-astra |
 | Permissions | https://github.com/organizations/rungalileo/settings/apps/galileo-astra/permissions |
 | Webhook Deliveries | https://github.com/organizations/rungalileo/settings/apps/galileo-astra/advanced |
