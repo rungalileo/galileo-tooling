@@ -95,6 +95,18 @@ Run `provision_secrets.py` first, then `provision_infra.py`. Both are idempotent
 | **Cloud Run service** | `astra-gateway` | Receives GitHub webhooks and enqueues tasks |
 | **Cloud Run job** | `astra-job` | Executes PR reviews in a sandboxed container |
 
+## GCP Console
+
+| Resource | URL |
+|---|---|
+| Artifact Registry | https://console.cloud.google.com/artifacts/docker/rungalileo-dev/us-west1/astra?project=rungalileo-dev |
+| Secret Manager | https://console.cloud.google.com/security/secret-manager?referrer=search&project=rungalileo-dev |
+| Cloud Run | https://console.cloud.google.com/run?project=rungalileo-dev |
+| Cloud Tasks | https://console.cloud.google.com/cloudtasks?project=rungalileo-dev |
+| Service Accounts | https://console.cloud.google.com/iam-admin/serviceaccounts?project=rungalileo-dev |
+| Job Executions | https://console.cloud.google.com/run/jobs/details/us-west1/astra-job/executions?project=rungalileo-dev |
+| Logs Explorer | https://console.cloud.google.com/logs?project=rungalileo-dev |
+
 ## Why the name Astra?
 
 Astra comes from the Latin word for “stars,” a nod to Galileo Galilei and his work observing the heavens.
