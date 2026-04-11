@@ -14,6 +14,7 @@ router = APIRouter()
 
 GITHUB_API = "https://api.github.com"
 COMMAND_PREFIX = "/astra "
+VALID_COMMANDS = {"review"}
 
 
 def _github_headers(token: str) -> dict[str, str]:
@@ -56,7 +57,6 @@ async def handle_webhook(request: Request) -> JSONResponse:
     command = parts[1] if len(parts) >= 2 else None
     if not command:
         return JSONResponse({"ignored": "empty_command"})
-
     # 6. Extract fields
     repo_owner = payload["repository"]["owner"]["login"]
     repo_name = payload["repository"]["name"]
@@ -70,18 +70,42 @@ async def handle_webhook(request: Request) -> JSONResponse:
         command, requester, repo_owner, repo_name, pr_number,
     )
 
-    # 7. Mint installation token and fetch head SHA
+    # 7. Mint installation token
     app_id = os.environ["ASTRA_APP_ID"]
     private_key = os.environ["ASTRA_APP_PRIVATE_KEY"]
     token = await mint_installation_token(app_id, private_key, installation_id)
 
+    # 8. Validate command
+    if command not in VALID_COMMANDS and command != "help":
+        valid = ", ".join(sorted(VALID_COMMANDS | {"help"}))
+        body = f"Unknown command `{command}`. Valid commands: {valid}."
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                headers=_github_headers(token),
+                json={"body": body},
+            )
+        return JSONResponse({"ignored": f"unknown_command={command}"})
+
+    if command == "help":
+        lines = ["Available commands:"]
+        lines.extend(f"- `{cmd}`" for cmd in sorted(VALID_COMMANDS | {"help"}))
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                headers=_github_headers(token),
+                json={"body": "\n".join(lines)},
+            )
+        return JSONResponse({"ok": True, "command": "help"})
+
     async with httpx.AsyncClient() as client:
+        # 9. Fetch head SHA
         pr_url = payload["issue"]["pull_request"]["url"]
         resp = await client.get(pr_url, headers=_github_headers(token))
         resp.raise_for_status()
         head_sha = resp.json()["head"]["sha"]
 
-        # 8. Add eyes reaction (non-critical)
+        # 10. Add eyes reaction (non-critical)
         try:
             reaction_resp = await client.post(
                 f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
@@ -96,7 +120,7 @@ async def handle_webhook(request: Request) -> JSONResponse:
         except Exception:
             log.warning("Failed to add eyes reaction", exc_info=True)
 
-    # 9. Enqueue Cloud Task
+    # 11. Enqueue Cloud Task
     await enqueue_task({
         "repo_owner": repo_owner,
         "repo_name": repo_name,
