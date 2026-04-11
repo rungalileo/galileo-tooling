@@ -226,7 +226,7 @@ def deploy_job(project: str, tag: str) -> None:
         "--task-timeout=3600s",
         "--max-retries=0",
         "--parallelism=1",
-        "--memory=2Gi",
+        "--memory=4Gi",
         "--cpu=2",
         f"--service-account={sa}",
         f"--set-secrets={format_secrets(JOB_SECRETS)}",

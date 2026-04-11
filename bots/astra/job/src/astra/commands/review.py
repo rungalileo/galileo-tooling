@@ -129,10 +129,11 @@ async def cmd_review(args: argparse.Namespace) -> None:
         log.error("Review failed", exc_info=True)
         await _react(owner, repo, comment_id, "confused")
         try:
+            execution = os.environ.get("CLOUD_RUN_EXECUTION", "unknown")
             await post_error_comment(
                 owner, repo, pr_number,
                 "An unexpected error occurred while running the review. "
-                "Check the Cloud Run job logs for details.",
+                f"Job: `{execution}`",
             )
         except Exception:
             log.warning("Failed to post error comment", exc_info=True)
@@ -185,10 +186,11 @@ async def _run_review(
         log.info("Agent trace written to %s", trace_path)
 
     if result.error:
+        execution = os.environ.get("CLOUD_RUN_EXECUTION", "unknown")
         log.error("Workflow completed with error: %s", result.error)
         await _react(owner, repo, comment_id, "confused")
         try:
-            await post_error_comment(owner, repo, pr_number, result.error)
+            await post_error_comment(owner, repo, pr_number, f"{result.error}\n\nJob: `{execution}`")
         except Exception:
             log.warning("Failed to post error comment", exc_info=True)
         sys.exit(1)
