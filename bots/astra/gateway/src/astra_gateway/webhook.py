@@ -103,4 +103,11 @@ async def handle_webhook(request: Request) -> JSONResponse:
         "requester": requester,
     })
 
-    return JSONResponse({"ok": True})
+    return JSONResponse({
+        "ok": True,
+        "command": command,
+        "repo": f"{repo_owner}/{repo_name}",
+        "pr": pr_number,
+        "head_sha": head_sha,
+        "requester": requester,
+    })
