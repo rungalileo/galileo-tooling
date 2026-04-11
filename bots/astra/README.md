@@ -44,10 +44,12 @@ sequenceDiagram
 
     Note over Job,GitHub: Job runs in fresh container
     Job->>Job: Mint GitHub installation token
-    Job->>GitHub: Fetch PR diff & changed files
-    Job->>Claude: Run agentic workflow
-    Claude-->>Job: Review results
-    Job->>GitHub: Post review comments
+    Job->>GitHub: Clone PR branch (partial clone)
+    Job->>GitHub: Fetch PR metadata, comments & diff
+    Job->>Claude: Run agentic workflow (Claude Agent SDK)
+    Claude-->>Job: Structured review (JSON)
+    Job->>GitHub: Publish review via GraphQL
+    Job->>GitHub: Add 🚀 reaction (completed)
     Job->>Job: Exit 0
 ```
 
