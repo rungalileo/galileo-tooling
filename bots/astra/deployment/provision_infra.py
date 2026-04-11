@@ -81,10 +81,11 @@ SERVICE_ACCOUNT_IAM_BINDINGS = [
     ("astra-gateway", "astra-gateway", "roles/iam.serviceAccountUser"),
 ]
 
-# (service_account_name, resource_type ["jobs"|"services"], resource_name)
+# (service_account_name, resource_type ["jobs"|"services"], resource_name, role)
 CLOUD_RUN_IAM_BINDINGS = [
-    ("astra-gateway", "jobs", "astra-job"),
-    ("astra-gateway", "services", "astra-gateway"),
+    # run.developer needed for run_job with overrides (run.jobs.runWithOverrides)
+    ("astra-gateway", "jobs", "astra-job", "roles/run.developer"),
+    ("astra-gateway", "services", "astra-gateway", "roles/run.invoker"),
 ]
 
 TASK_QUEUE = "astra-task-queue"
@@ -319,8 +320,7 @@ def bind_cloud_run_iam(
 ) -> None:
     """Attempt Cloud Run IAM bindings; defer if resources don't exist yet."""
     print("\n[7/8] Adding Cloud Run IAM bindings (best-effort)...\n")
-    role = "roles/run.invoker"
-    for sa_name, resource_type, resource_name in CLOUD_RUN_IAM_BINDINGS:
+    for sa_name, resource_type, resource_name, role in CLOUD_RUN_IAM_BINDINGS:
         member = sa_member(sa_name, project)
         args = [
             "run", resource_type, "add-iam-policy-binding", resource_name,
@@ -330,7 +330,7 @@ def bind_cloud_run_iam(
             f"--project={project}",
         ]
         result = run_gcloud(args, check=False)
-        label = f"{sa_name} -> run.invoker ({resource_type}: {resource_name})"
+        label = f"{sa_name} -> {role.split('/')[-1]} ({resource_type}: {resource_name})"
         if result.returncode == 0:
             results["Cloud Run IAM"].append((label, "bound"))
         else:
@@ -425,8 +425,8 @@ def print_plan(project: str) -> None:
         print(f"    - {sa_name} -> roles/secretmanager.secretAccessor ({secret})")
     for granter_sa, grantee_sa, role in SERVICE_ACCOUNT_IAM_BINDINGS:
         print(f"    - {grantee_sa} -> {role} (on SA: {granter_sa})")
-    for sa_name, resource_type, resource_name in CLOUD_RUN_IAM_BINDINGS:
-        print(f"    - {sa_name} -> roles/run.invoker ({resource_type}: {resource_name}) [best-effort]")
+    for sa_name, resource_type, resource_name, role in CLOUD_RUN_IAM_BINDINGS:
+        print(f"    - {sa_name} -> {role} ({resource_type}: {resource_name}) [best-effort]")
 
     print(f"\n  Cloud Tasks queue:")
     print(f"    - {TASK_QUEUE} (location: {REGION})")
