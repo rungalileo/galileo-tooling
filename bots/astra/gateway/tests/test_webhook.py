@@ -247,3 +247,87 @@ class TestWebhookHeadShaFailure:
         assert "404" in comment_call.kwargs["json"]["body"]
         assert "/issues/comments/99/reactions" in reaction_call.args[0]
         assert reaction_call.kwargs["json"]["content"] == "confused"
+
+
+class TestMintTokenFailure:
+    @patch.dict("os.environ", ENV)
+    @patch("astra_gateway.webhook.enqueue_task")
+    @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
+    @patch("astra_gateway.webhook.httpx.AsyncClient")
+    def test_mint_failure_returns_200_no_enqueue(
+        self, mock_client_cls, mock_mint, mock_enqueue, client,
+    ):
+        mock_mint.side_effect = Exception("token exchange failed")
+
+        payload = _issue_comment_payload("/astra review")
+        body = json.dumps(payload).encode()
+
+        resp = client.post(
+            "/webhook",
+            content=body,
+            headers={
+                "X-Hub-Signature-256": _sign(body),
+                "X-GitHub-Event": "issue_comment",
+            },
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["error"] == "failed to mint installation token"
+        mock_enqueue.assert_not_called()
+        mock_client_cls.assert_not_called()
+
+
+class TestEnqueueFailure:
+    @patch.dict("os.environ", ENV)
+    @patch("astra_gateway.webhook.enqueue_task")
+    @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
+    @patch("astra_gateway.webhook.httpx.AsyncClient")
+    def test_enqueue_failure_posts_error_comment(
+        self, mock_client_cls, mock_mint, mock_enqueue, client,
+    ):
+        mock_mint.return_value = "ghs_token"
+        mock_enqueue.side_effect = Exception("Cloud Tasks unavailable")
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        pr_response = MagicMock()
+        pr_response.json.return_value = {"head": {"sha": "abc123"}}
+        pr_response.raise_for_status = MagicMock()
+
+        reaction_response = MagicMock()
+        reaction_response.is_success = True
+
+        mock_client.get.return_value = pr_response
+        mock_client.post.return_value = reaction_response
+        mock_client_cls.return_value = mock_client
+
+        payload = _issue_comment_payload("/astra review")
+        body = json.dumps(payload).encode()
+
+        resp = client.post(
+            "/webhook",
+            content=body,
+            headers={
+                "X-Hub-Signature-256": _sign(body),
+                "X-GitHub-Event": "issue_comment",
+            },
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["error"] == "unexpected error"
+
+        # Find the error comment and confused reaction among all post calls
+        post_calls = mock_client.post.call_args_list
+        error_comment_calls = [
+            c for c in post_calls if "/issues/42/comments" in c.args[0]
+        ]
+        reaction_calls = [
+            c for c in post_calls
+            if "/issues/comments/99/reactions" in c.args[0]
+            and c.kwargs.get("json", {}).get("content") == "confused"
+        ]
+        assert len(error_comment_calls) >= 1
+        assert "unexpected error" in error_comment_calls[-1].kwargs["json"]["body"]
+        assert len(reaction_calls) >= 1

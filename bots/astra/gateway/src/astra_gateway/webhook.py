@@ -73,85 +73,110 @@ async def handle_webhook(request: Request) -> JSONResponse:
     # 7. Mint installation token
     app_id = os.environ["ASTRA_APP_ID"]
     private_key = os.environ["ASTRA_APP_PRIVATE_KEY"]
-    token = await mint_installation_token(app_id, private_key, installation_id)
-
-    # 8. Validate command
-    if command not in VALID_COMMANDS and command != "help":
-        valid = ", ".join(sorted(VALID_COMMANDS | {"help"}))
-        body = f"Unknown command `{command}`. Valid commands: {valid}."
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
-                headers=_github_headers(token),
-                json={"body": body},
-            )
-        return JSONResponse({"ignored": f"unknown_command={command}"})
-
-    if command == "help":
-        lines = ["Available commands:"]
-        lines.extend(f"- `{cmd}`" for cmd in sorted(VALID_COMMANDS | {"help"}))
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
-                headers=_github_headers(token),
-                json={"body": "\n".join(lines)},
-            )
-        return JSONResponse({"ok": True, "command": "help"})
+    try:
+        token = await mint_installation_token(app_id, private_key, installation_id)
+    except Exception:
+        log.exception("Failed to mint installation token for installation %s", installation_id)
+        return JSONResponse({"error": "failed to mint installation token"})
 
     try:
-        async with httpx.AsyncClient() as client:
-            # 9. Fetch head SHA
-            pr_url = payload["issue"]["pull_request"]["url"]
-            resp = await client.get(pr_url, headers=_github_headers(token))
-            resp.raise_for_status()
-            head_sha = resp.json()["head"]["sha"]
+        # 8. Validate command
+        if command not in VALID_COMMANDS and command != "help":
+            valid = ", ".join(sorted(VALID_COMMANDS | {"help"}))
+            body = f"Unknown command `{command}`. Valid commands: {valid}."
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                    headers=_github_headers(token),
+                    json={"body": body},
+                )
+            return JSONResponse({"ignored": f"unknown_command={command}"})
 
-            # 10. Add eyes reaction (non-critical)
-            try:
-                reaction_resp = await client.post(
+        if command == "help":
+            lines = ["Available commands:"]
+            lines.extend(f"- `{cmd}`" for cmd in sorted(VALID_COMMANDS | {"help"}))
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                    headers=_github_headers(token),
+                    json={"body": "\n".join(lines)},
+                )
+            return JSONResponse({"ok": True, "command": "help"})
+
+        try:
+            async with httpx.AsyncClient() as client:
+                # 9. Fetch head SHA
+                pr_url = payload["issue"]["pull_request"]["url"]
+                resp = await client.get(pr_url, headers=_github_headers(token))
+                resp.raise_for_status()
+                head_sha = resp.json()["head"]["sha"]
+
+                # 10. Add eyes reaction (non-critical)
+                try:
+                    reaction_resp = await client.post(
+                        f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
+                        headers=_github_headers(token),
+                        json={"content": "eyes"},
+                    )
+                    if not reaction_resp.is_success:
+                        log.warning(
+                            "Failed to add eyes reaction: %d %s",
+                            reaction_resp.status_code, reaction_resp.text,
+                        )
+                except Exception:
+                    log.warning("Failed to add eyes reaction", exc_info=True)
+        except httpx.HTTPStatusError as exc:
+            log.error("Failed to fetch PR head SHA: %s", exc)
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                    headers=_github_headers(token),
+                    json={"body": f"Failed to process command: could not fetch PR metadata ({exc.response.status_code})."},
+                )
+                await client.post(
                     f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
                     headers=_github_headers(token),
-                    json={"content": "eyes"},
+                    json={"content": "confused"},
                 )
-                if not reaction_resp.is_success:
-                    log.warning(
-                        "Failed to add eyes reaction: %d %s",
-                        reaction_resp.status_code, reaction_resp.text,
-                    )
-            except Exception:
-                log.warning("Failed to add eyes reaction", exc_info=True)
-    except httpx.HTTPStatusError as exc:
-        log.error("Failed to fetch PR head SHA: %s", exc)
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
-                headers=_github_headers(token),
-                json={"body": f"Failed to process command: could not fetch PR metadata ({exc.response.status_code})."},
-            )
-            await client.post(
-                f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
-                headers=_github_headers(token),
-                json={"content": "confused"},
-            )
-        return JSONResponse({"error": "failed to fetch PR head SHA"})
+            return JSONResponse({"error": "failed to fetch PR head SHA"})
 
-    # 11. Enqueue Cloud Task
-    await enqueue_task({
-        "repo_owner": repo_owner,
-        "repo_name": repo_name,
-        "pr_number": pr_number,
-        "head_sha": head_sha,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-        "command": command,
-        "requester": requester,
-    })
+        # 11. Enqueue Cloud Task
+        await enqueue_task({
+            "repo_owner": repo_owner,
+            "repo_name": repo_name,
+            "pr_number": pr_number,
+            "head_sha": head_sha,
+            "installation_id": installation_id,
+            "comment_id": comment_id,
+            "command": command,
+            "requester": requester,
+        })
 
-    return JSONResponse({
-        "ok": True,
-        "command": command,
-        "repo": f"{repo_owner}/{repo_name}",
-        "pr": pr_number,
-        "head_sha": head_sha,
-        "requester": requester,
-    })
+        return JSONResponse({
+            "ok": True,
+            "command": command,
+            "repo": f"{repo_owner}/{repo_name}",
+            "pr": pr_number,
+            "head_sha": head_sha,
+            "requester": requester,
+        })
+    except Exception:
+        log.exception(
+            "Unexpected error processing /astra %s on %s/%s#%d",
+            command, repo_owner, repo_name, pr_number,
+        )
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
+                    headers=_github_headers(token),
+                    json={"body": "Sorry, an unexpected error occurred while processing your command."},
+                )
+                await client.post(
+                    f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
+                    headers=_github_headers(token),
+                    json={"content": "confused"},
+                )
+        except Exception:
+            log.warning("Failed to post error feedback to PR", exc_info=True)
+        return JSONResponse({"error": "unexpected error"})
