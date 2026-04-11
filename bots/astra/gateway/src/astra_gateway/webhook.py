@@ -90,11 +90,11 @@ async def handle_webhook(request: Request) -> JSONResponse:
             # 8. Validate command
             if command not in VALID_COMMANDS and command != "help":
                 valid = ", ".join(sorted(VALID_COMMANDS | {"help"}))
-                body = f"Unknown command `{command}`. Valid commands: {valid}."
+                msg = f"Unknown command `{command}`. Valid commands: {valid}."
                 await client.post(
                     f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
                     headers=_github_headers(token),
-                    json={"body": body},
+                    json={"body": msg},
                 )
                 return JSONResponse({"ignored": f"unknown_command={command}"})
 
