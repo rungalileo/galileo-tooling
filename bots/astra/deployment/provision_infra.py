@@ -75,6 +75,12 @@ PROJECT_IAM_BINDINGS = [
     ("astra-gateway", "roles/cloudtasks.enqueuer", "project"),
 ]
 
+# (granter_sa, grantee_sa, role) — IAM bindings on service accounts themselves
+SERVICE_ACCOUNT_IAM_BINDINGS = [
+    # Cloud Tasks needs to mint OIDC tokens as the gateway SA for /dispatch callbacks
+    ("astra-gateway", "astra-gateway", "roles/iam.serviceAccountUser"),
+]
+
 # (service_account_name, resource_type ["jobs"|"services"], resource_name)
 CLOUD_RUN_IAM_BINDINGS = [
     ("astra-gateway", "jobs", "astra-job"),
@@ -290,11 +296,29 @@ def bind_secret_iam(
         results["IAM bindings"].append((label, "bound"))
 
 
+def bind_service_account_iam(
+    project: str, results: dict[str, list[tuple[str, str]]]
+) -> None:
+    """Add IAM bindings on service accounts (e.g. serviceAccountUser)."""
+    print("\n[6/8] Adding service account IAM bindings...\n")
+    for granter_sa, grantee_sa, role in SERVICE_ACCOUNT_IAM_BINDINGS:
+        member = sa_member(grantee_sa, project)
+        email = sa_email(granter_sa, project)
+        run_gcloud([
+            "iam", "service-accounts", "add-iam-policy-binding", email,
+            f"--member={member}",
+            f"--role={role}",
+            f"--project={project}",
+        ])
+        label = f"{grantee_sa} -> {role.split('/')[-1]} (on {granter_sa})"
+        results["IAM bindings"].append((label, "bound"))
+
+
 def bind_cloud_run_iam(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Attempt Cloud Run IAM bindings; defer if resources don't exist yet."""
-    print("\n[6/7] Adding Cloud Run IAM bindings (best-effort)...\n")
+    print("\n[7/8] Adding Cloud Run IAM bindings (best-effort)...\n")
     role = "roles/run.invoker"
     for sa_name, resource_type, resource_name in CLOUD_RUN_IAM_BINDINGS:
         member = sa_member(sa_name, project)
@@ -320,7 +344,7 @@ def create_task_queue(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Create or update the Cloud Tasks queue."""
-    print("\n[7/7] Creating Cloud Tasks queue...\n")
+    print("\n[8/8] Creating Cloud Tasks queue...\n")
     config_args = [f"--{k}={v}" for k, v in TASK_QUEUE_CONFIG.items()]
 
     if resource_exists([
@@ -399,6 +423,8 @@ def print_plan(project: str) -> None:
         print(f"    - {sa_name} -> {role} ({scope})")
     for sa_name, secret in SECRET_IAM_BINDINGS:
         print(f"    - {sa_name} -> roles/secretmanager.secretAccessor ({secret})")
+    for granter_sa, grantee_sa, role in SERVICE_ACCOUNT_IAM_BINDINGS:
+        print(f"    - {grantee_sa} -> {role} (on SA: {granter_sa})")
     for sa_name, resource_type, resource_name in CLOUD_RUN_IAM_BINDINGS:
         print(f"    - {sa_name} -> roles/run.invoker ({resource_type}: {resource_name}) [best-effort]")
 
@@ -456,6 +482,7 @@ def main() -> None:
         create_service_accounts(project, results)
         bind_project_iam(project, results)
         bind_secret_iam(project, results, existing_secrets)
+        bind_service_account_iam(project, results)
         bind_cloud_run_iam(project, results)
         create_task_queue(project, results)
     except subprocess.CalledProcessError as exc:

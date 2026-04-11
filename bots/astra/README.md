@@ -169,6 +169,8 @@ After the first deploy, update the GitHub App webhook URL to the gateway URL pri
 | Cloud Tasks | https://console.cloud.google.com/cloudtasks?project=rungalileo-dev |
 | Service Accounts | https://console.cloud.google.com/iam-admin/serviceaccounts?project=rungalileo-dev |
 | Job Executions | https://console.cloud.google.com/run/jobs/details/us-west1/astra-job/executions?project=rungalileo-dev |
+| Gateway Logs | https://console.cloud.google.com/run/detail/us-west1/astra-gateway/observability/logs?project=rungalileo-dev |
+| Job Logs | https://console.cloud.google.com/run/jobs/details/us-west1/astra-job/observability/logs?project=rungalileo-dev |
 | Logs Explorer | https://console.cloud.google.com/logs?project=rungalileo-dev |
 
 ## Why the name Astra?
