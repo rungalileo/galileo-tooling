@@ -227,7 +227,7 @@ def main() -> None:
             missing_required.append(f"{env_var} (for {secret_id})")
 
     if missing_required:
-        print(f"\nError: The following secrets don't exist in GCP and have no value in .env:")
+        print("\nError: The following secrets don't exist in GCP and have no value in .env:")
         for item in missing_required:
             print(f"  - {item}")
         print("\nEither set them in .env or create the secrets manually.")

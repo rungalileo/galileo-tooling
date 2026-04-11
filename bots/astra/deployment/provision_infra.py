@@ -197,7 +197,7 @@ def verify_secrets_exist(project: str) -> set[str]:
 
 def enable_apis(project: str, results: dict[str, list[tuple[str, str]]]) -> None:
     """Enable required GCP APIs."""
-    print("\n[1/7] Enabling APIs...\n")
+    print("\n[1/8] Enabling APIs...\n")
     for api in REQUIRED_APIS:
         run_gcloud(["services", "enable", api, f"--project={project}"])
         results["APIs"].append((api, "enabled"))
@@ -207,7 +207,7 @@ def create_artifact_registry(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Create the Artifact Registry Docker repository if it doesn't exist."""
-    print("\n[2/7] Creating Artifact Registry repository...\n")
+    print("\n[2/8] Creating Artifact Registry repository...\n")
     if resource_exists([
         "artifacts", "repositories", "describe", ARTIFACT_REGISTRY_REPO,
         f"--location={REGION}", f"--project={project}",
@@ -228,7 +228,7 @@ def create_service_accounts(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Create service accounts if they don't exist."""
-    print("\n[3/7] Creating service accounts...\n")
+    print("\n[3/8] Creating service accounts...\n")
     created = []
     for sa_name, display_name in SERVICE_ACCOUNTS.items():
         email = sa_email(sa_name, project)
@@ -258,7 +258,7 @@ def bind_project_iam(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Add project-level IAM bindings."""
-    print("\n[4/7] Adding project-level IAM bindings...\n")
+    print("\n[4/8] Adding project-level IAM bindings...\n")
     for sa_name, role, scope in PROJECT_IAM_BINDINGS:
         member = sa_member(sa_name, project)
         run_gcloud([
@@ -278,7 +278,7 @@ def bind_secret_iam(
     existing_secrets: set[str],
 ) -> None:
     """Add secret-level IAM bindings."""
-    print("\n[5/7] Adding secret-level IAM bindings...\n")
+    print("\n[5/8] Adding secret-level IAM bindings...\n")
     role = "roles/secretmanager.secretAccessor"
     for sa_name, secret in SECRET_IAM_BINDINGS:
         if secret not in existing_secrets:
@@ -391,7 +391,7 @@ def print_summary(project: str, results: dict[str, list[tuple[str, str]]]) -> No
             for name, status in items:
                 print(f"    {name:<55} {status}")
 
-    print(f"\nVerify with:")
+    print("\nVerify with:")
     print(f"  gcloud artifacts repositories describe {ARTIFACT_REGISTRY_REPO} --location={REGION} --project={project}")
     print(f"  gcloud iam service-accounts list --filter='email:astra-' --project={project}")
     print(f"  gcloud tasks queues describe {TASK_QUEUE} --location={REGION} --project={project}")
@@ -411,7 +411,7 @@ def print_plan(project: str) -> None:
     for api in REQUIRED_APIS:
         print(f"    - {api}")
 
-    print(f"\n  Artifact Registry repository:")
+    print("\n  Artifact Registry repository:")
     print(f"    - {ARTIFACT_REGISTRY_REPO} (format: {ARTIFACT_REGISTRY_FORMAT}, location: {REGION})")
 
     print("\n  Service accounts to create:")
@@ -428,7 +428,7 @@ def print_plan(project: str) -> None:
     for sa_name, resource_type, resource_name, role in CLOUD_RUN_IAM_BINDINGS:
         print(f"    - {sa_name} -> {role} ({resource_type}: {resource_name}) [best-effort]")
 
-    print(f"\n  Cloud Tasks queue:")
+    print("\n  Cloud Tasks queue:")
     print(f"    - {TASK_QUEUE} (location: {REGION})")
     for k, v in TASK_QUEUE_CONFIG.items():
         print(f"        {k}: {v}")

@@ -3,7 +3,6 @@ import hmac
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt
-import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 

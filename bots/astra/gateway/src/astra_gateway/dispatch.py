@@ -23,11 +23,18 @@ async def handle_dispatch(request: Request) -> JSONResponse:
 
     # 2. Parse task payload
     payload = await request.json()
-    repo_owner = payload["repo_owner"]
-    repo_name = payload["repo_name"]
-    pr_number = payload["pr_number"]
-    installation_id = payload["installation_id"]
-    command = payload["command"]
+    try:
+        repo_owner = payload["repo_owner"]
+        repo_name = payload["repo_name"]
+        pr_number = payload["pr_number"]
+        installation_id = payload["installation_id"]
+        command = payload["command"]
+    except KeyError as e:
+        log.error("Malformed task payload, missing key %s: %s", e, payload)
+        return JSONResponse(
+            {"error": f"missing required field: {e}"},
+            status_code=200,
+        )
     comment_id = payload.get("comment_id")
     head_sha = payload.get("head_sha")
 

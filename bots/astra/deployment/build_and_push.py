@@ -25,7 +25,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -170,7 +169,7 @@ def main() -> None:
     print("Docker is running.")
 
     # Plan
-    print(f"\nThis will build and push the following images:\n")
+    print("\nThis will build and push the following images:\n")
     for name in selected:
         for tag in tags:
             print(f"  - {image_ref(project, name, tag)}")
