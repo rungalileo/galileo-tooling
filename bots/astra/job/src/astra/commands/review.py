@@ -181,8 +181,8 @@ async def _run_review(
     log.info("Cloning PR branch")
     clone_path = await clone_pr(owner, repo, branch, repo_url=repo_url, main_branch=main_branch)
 
-    if (clone_path / "pyproject.toml").exists():
-        log.info("Found pyproject.toml, running poetry install")
+    if (clone_path / "poetry.lock").exists():
+        log.info("Found poetry.lock, running poetry install")
         try:
             proc = await asyncio.create_subprocess_exec("poetry", "install", cwd=clone_path)
             await proc.communicate()
