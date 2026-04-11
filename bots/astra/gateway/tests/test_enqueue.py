@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from astra_gateway.enqueue import enqueue_task
 
@@ -24,9 +24,10 @@ PAYLOAD = {
 
 class TestEnqueueTask:
     @patch.dict("os.environ", ENV)
-    @patch("astra_gateway.enqueue.tasks_v2.CloudTasksClient")
-    def test_creates_task_with_correct_name(self, mock_client_cls):
+    @patch("astra_gateway.enqueue.tasks_v2.CloudTasksAsyncClient")
+    async def test_creates_task_with_correct_name(self, mock_client_cls):
         mock_client = MagicMock()
+        mock_client.create_task = AsyncMock()
         mock_client_cls.return_value = mock_client
         mock_client.queue_path.return_value = (
             "projects/test-project/locations/us-west1/queues/astra-task-queue"
@@ -36,7 +37,7 @@ class TestEnqueueTask:
             "/tasks/myorg-myrepo-pr42-c99"
         )
 
-        enqueue_task(PAYLOAD)
+        await enqueue_task(PAYLOAD)
 
         mock_client.create_task.assert_called_once()
         call_kwargs = mock_client.create_task.call_args[1]
@@ -44,27 +45,29 @@ class TestEnqueueTask:
         assert "myorg-myrepo-pr42-c99" in task.name
 
     @patch.dict("os.environ", ENV)
-    @patch("astra_gateway.enqueue.tasks_v2.CloudTasksClient")
-    def test_task_targets_dispatch_url(self, mock_client_cls):
+    @patch("astra_gateway.enqueue.tasks_v2.CloudTasksAsyncClient")
+    async def test_task_targets_dispatch_url(self, mock_client_cls):
         mock_client = MagicMock()
+        mock_client.create_task = AsyncMock()
         mock_client_cls.return_value = mock_client
         mock_client.queue_path.return_value = "parent"
         mock_client.task_path.return_value = "task-name"
 
-        enqueue_task(PAYLOAD)
+        await enqueue_task(PAYLOAD)
 
         task = mock_client.create_task.call_args[1]["request"]["task"]
         assert task.http_request.url == "https://gateway.run.app/dispatch"
 
     @patch.dict("os.environ", ENV)
-    @patch("astra_gateway.enqueue.tasks_v2.CloudTasksClient")
-    def test_task_has_oidc_token(self, mock_client_cls):
+    @patch("astra_gateway.enqueue.tasks_v2.CloudTasksAsyncClient")
+    async def test_task_has_oidc_token(self, mock_client_cls):
         mock_client = MagicMock()
+        mock_client.create_task = AsyncMock()
         mock_client_cls.return_value = mock_client
         mock_client.queue_path.return_value = "parent"
         mock_client.task_path.return_value = "task-name"
 
-        enqueue_task(PAYLOAD)
+        await enqueue_task(PAYLOAD)
 
         task = mock_client.create_task.call_args[1]["request"]["task"]
         oidc = task.http_request.oidc_token

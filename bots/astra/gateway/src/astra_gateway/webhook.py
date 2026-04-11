@@ -97,7 +97,7 @@ async def handle_webhook(request: Request) -> JSONResponse:
             log.warning("Failed to add eyes reaction", exc_info=True)
 
     # 9. Enqueue Cloud Task
-    enqueue_task({
+    await enqueue_task({
         "repo_owner": repo_owner,
         "repo_name": repo_name,
         "pr_number": pr_number,

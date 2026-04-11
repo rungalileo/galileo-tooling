@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -44,15 +44,15 @@ class TestDispatchAuth:
 
 class TestDispatchHappyPath:
     @patch.dict("os.environ", ENV)
-    @patch("astra_gateway.dispatch.validate_oidc_token", return_value=True)
-    @patch("astra_gateway.dispatch.run_v2.JobsClient")
+    @patch("astra_gateway.dispatch.validate_oidc_token", new_callable=AsyncMock, return_value=True)
+    @patch("astra_gateway.dispatch.run_v2.JobsAsyncClient")
     def test_valid_request_starts_job(self, mock_jobs_cls, mock_oidc):
         mock_client = MagicMock()
         mock_jobs_cls.return_value = mock_client
 
         mock_operation = MagicMock()
         mock_operation.metadata.name = "projects/p/locations/r/jobs/j/executions/e"
-        mock_client.run_job.return_value = mock_operation
+        mock_client.run_job = AsyncMock(return_value=mock_operation)
 
         resp = client.post(
             "/dispatch",

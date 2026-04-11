@@ -7,7 +7,7 @@ from google.cloud import tasks_v2
 log = logging.getLogger(__name__)
 
 
-def enqueue_task(payload: dict) -> None:
+async def enqueue_task(payload: dict) -> None:
     """Enqueue a Cloud Tasks HTTP task targeting the gateway's /dispatch route."""
     project = os.environ["GCP_PROJECT"]
     region = os.environ.get("GCP_REGION", "us-west1")
@@ -15,7 +15,7 @@ def enqueue_task(payload: dict) -> None:
     gateway_url = os.environ["GATEWAY_URL"]
     gateway_sa = os.environ["GATEWAY_SA_EMAIL"]
 
-    client = tasks_v2.CloudTasksClient()
+    client = tasks_v2.CloudTasksAsyncClient()
     parent = client.queue_path(project, region, queue)
 
     owner = payload["repo_owner"]
@@ -38,5 +38,5 @@ def enqueue_task(payload: dict) -> None:
         ),
     )
 
-    client.create_task(request={"parent": parent, "task": task})
+    await client.create_task(request={"parent": parent, "task": task})
     log.info("Enqueued task %s", task_id)

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import logging
@@ -35,10 +36,9 @@ def validate_webhook_signature(
     return hmac.compare_digest(expected, signature_header)
 
 
-def validate_oidc_token(
+def _validate_oidc_token_sync(
     auth_header: str, expected_audience: str, expected_email: str,
 ) -> bool:
-    """Validate a Google OIDC token from Cloud Tasks."""
     if not auth_header.startswith("Bearer "):
         return False
     token = auth_header[7:]
@@ -58,3 +58,12 @@ def validate_oidc_token(
     except Exception:
         log.warning("OIDC token validation failed", exc_info=True)
         return False
+
+
+async def validate_oidc_token(
+    auth_header: str, expected_audience: str, expected_email: str,
+) -> bool:
+    """Validate a Google OIDC token from Cloud Tasks."""
+    return await asyncio.to_thread(
+        _validate_oidc_token_sync, auth_header, expected_audience, expected_email,
+    )

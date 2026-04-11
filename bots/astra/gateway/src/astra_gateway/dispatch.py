@@ -18,7 +18,7 @@ async def handle_dispatch(request: Request) -> JSONResponse:
     gateway_url = os.environ["GATEWAY_URL"]
     gateway_sa = os.environ["GATEWAY_SA_EMAIL"]
     auth_header = request.headers.get("Authorization", "")
-    if not validate_oidc_token(auth_header, gateway_url, gateway_sa):
+    if not await validate_oidc_token(auth_header, gateway_url, gateway_sa):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
     # 2. Parse task payload
@@ -51,7 +51,7 @@ async def handle_dispatch(request: Request) -> JSONResponse:
     region = os.environ.get("GCP_REGION", "us-west1")
     job_name = os.environ.get("ASTRA_JOB_NAME", "astra-job")
 
-    client = run_v2.JobsClient()
+    client = run_v2.JobsAsyncClient()
     job_path = f"projects/{project}/locations/{region}/jobs/{job_name}"
 
     override = run_v2.RunJobRequest.Overrides(
@@ -76,7 +76,7 @@ async def handle_dispatch(request: Request) -> JSONResponse:
         ],
     )
 
-    operation = client.run_job(
+    operation = await client.run_job(
         run_v2.RunJobRequest(name=job_path, overrides=override),
     )
     execution_name = operation.metadata.name

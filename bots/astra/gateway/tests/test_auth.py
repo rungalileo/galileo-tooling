@@ -90,19 +90,19 @@ class TestMintInstallationToken:
 
 
 class TestValidateOidcToken:
-    def test_no_bearer_prefix(self):
-        assert validate_oidc_token("Basic abc", "aud", "email") is False
+    async def test_no_bearer_prefix(self):
+        assert await validate_oidc_token("Basic abc", "aud", "email") is False
 
-    def test_empty_header(self):
-        assert validate_oidc_token("", "aud", "email") is False
+    async def test_empty_header(self):
+        assert await validate_oidc_token("", "aud", "email") is False
 
     @patch("astra_gateway.auth.google_requests")
     @patch("astra_gateway.auth.id_token")
-    def test_valid_token(self, mock_id_token, mock_greq):
+    async def test_valid_token(self, mock_id_token, mock_greq):
         mock_id_token.verify_oauth2_token.return_value = {
             "email": "sa@project.iam.gserviceaccount.com",
         }
-        assert validate_oidc_token(
+        assert await validate_oidc_token(
             "Bearer tok",
             "https://gateway.run.app",
             "sa@project.iam.gserviceaccount.com",
@@ -110,11 +110,11 @@ class TestValidateOidcToken:
 
     @patch("astra_gateway.auth.google_requests")
     @patch("astra_gateway.auth.id_token")
-    def test_wrong_email(self, mock_id_token, mock_greq):
+    async def test_wrong_email(self, mock_id_token, mock_greq):
         mock_id_token.verify_oauth2_token.return_value = {
             "email": "wrong@project.iam.gserviceaccount.com",
         }
-        assert validate_oidc_token(
+        assert await validate_oidc_token(
             "Bearer tok",
             "https://gateway.run.app",
             "expected@project.iam.gserviceaccount.com",

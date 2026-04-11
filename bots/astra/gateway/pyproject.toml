@@ -15,6 +15,7 @@ astra-shared = {path = "../shared", develop = true}
 google-cloud-tasks = "^2.22"
 google-cloud-run = "^0.16"
 google-auth = "^2.49"
+grpcio = "^1.80"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0"
