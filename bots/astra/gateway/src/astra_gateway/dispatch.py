@@ -33,6 +33,9 @@ async def handle_dispatch(request: Request) -> JSONResponse:
         command = payload["command"]
     except KeyError as e:
         log.error("Malformed task payload, missing key %s: %s", e, payload)
+        # Return 200 intentionally: Cloud Tasks retries ALL non-2xx responses,
+        # including 4xx. A malformed payload will never succeed on retry, so a
+        # 400 here would cause Cloud Tasks to retry until the queue limit.
         return JSONResponse(
             {"error": f"missing required field: {e}"},
             status_code=200,
