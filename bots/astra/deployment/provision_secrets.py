@@ -151,8 +151,9 @@ def create_or_update_secret(
 
 def resolve_secret_value(env_var: str, value: str | None) -> bytes:
     """Resolve an env var value to bytes, handling PEM files specially."""
+    if value is None:
+        raise ValueError(f"No value provided for secret {env_var}")
     if env_var == "ASTRA_PEM_FILE":
-        assert value is not None
         pem_path = Path(value).expanduser()
         if not pem_path.exists():
             print(f"Error: PEM file not found: {pem_path}")
@@ -161,7 +162,6 @@ def resolve_secret_value(env_var: str, value: str | None) -> bytes:
         if not pem_data.startswith(b"-----BEGIN"):
             print(f"Warning: {pem_path} doesn't look like a PEM file. Continuing anyway.")
         return pem_data
-    assert value is not None
     return value.encode()
 
 
