@@ -123,6 +123,7 @@ def main() -> None:
     parser.add_argument("--job", action="store_true", help="Build job image only")
     parser.add_argument("--tag", action="append", default=None,
                         help="Image tag(s) to apply (repeatable; default: latest + git short hash)")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     args = parser.parse_args()
 
     # Determine which images to build
@@ -156,10 +157,11 @@ def main() -> None:
             print(f"  - {image_ref(project, name, tag)}")
     print()
 
-    confirm = input("Proceed? [y/N] ").strip().lower()
-    if confirm != "y":
-        print("Aborted.")
-        sys.exit(0)
+    if not args.yes:
+        confirm = input("Proceed? [y/N] ").strip().lower()
+        if confirm != "y":
+            print("Aborted.")
+            sys.exit(0)
 
     # Build and push
     for name, context_dir in selected.items():

@@ -23,6 +23,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 import time
@@ -395,6 +396,10 @@ def print_plan(project: str) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Provision GCP infrastructure for Astra")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+    args = parser.parse_args()
+
     # --- Preflight checks ---
 
     project = get_active_project()
@@ -412,10 +417,11 @@ def main() -> None:
 
     print_plan(project)
 
-    confirm = input("Proceed? [y/N] ").strip().lower()
-    if confirm != "y":
-        print("Aborted.")
-        sys.exit(0)
+    if not args.yes:
+        confirm = input("Proceed? [y/N] ").strip().lower()
+        if confirm != "y":
+            print("Aborted.")
+            sys.exit(0)
 
     # --- Provision resources ---
 

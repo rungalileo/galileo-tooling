@@ -32,6 +32,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -165,6 +166,10 @@ def resolve_secret_value(env_var: str, value: str | None) -> bytes:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Provision GCP secrets for Astra")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+    args = parser.parse_args()
+
     # --- Load .env (may be empty or absent if all secrets already exist) ---
 
     dotenv_path = Path(".env")
@@ -243,10 +248,11 @@ def main() -> None:
         print(f"  - {secret_id}: skipped ({reason})")
 
     print()
-    confirm = input("Proceed? [y/N] ").strip().lower()
-    if confirm != "y":
-        print("Aborted.")
-        sys.exit(0)
+    if not args.yes:
+        confirm = input("Proceed? [y/N] ").strip().lower()
+        if confirm != "y":
+            print("Aborted.")
+            sys.exit(0)
 
     # --- Provision secrets ---
 

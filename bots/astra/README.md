@@ -62,6 +62,9 @@ astra/
 │   ├── pyproject.toml
 │   ├── src/astra_gateway/
 │   └── tests/
+├── shared/                  # Shared utilities (GitHub auth) used by gateway and job
+│   ├── pyproject.toml
+│   └── src/astra_shared/
 └── job/                     # Agentic workflow runner (Cloud Run job)
     ├── Dockerfile
     ├── pyproject.toml
@@ -102,7 +105,7 @@ uv run deployment/deploy.py
 
 All scripts are idempotent and safe to re-run. For routine deployments (code changes only), just run steps 3 and 4.
 
-Each script supports `--help` for options (e.g., `--gateway`/`--job` to target a single component, `--tag` for a specific image tag).
+Each script supports `--help` for options (e.g., `--gateway`/`--job` to target a single component, `--tag` for a specific image tag). All scripts accept `--yes` (`-y`) to skip the confirmation prompt.
 
 ### Updating after code changes
 

@@ -238,6 +238,7 @@ def main() -> None:
     parser.add_argument("--gateway", action="store_true", help="Deploy gateway only")
     parser.add_argument("--job", action="store_true", help="Deploy job only")
     parser.add_argument("--tag", default="latest", help="Image tag to deploy (default: latest)")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     args = parser.parse_args()
 
     deploy_both = not args.gateway and not args.job
@@ -260,10 +261,11 @@ def main() -> None:
         print(f"    Secrets: {', '.join(JOB_SECRETS.values())}")
     print()
 
-    confirm = input("Proceed? [y/N] ").strip().lower()
-    if confirm != "y":
-        print("Aborted.")
-        sys.exit(0)
+    if not args.yes:
+        confirm = input("Proceed? [y/N] ").strip().lower()
+        if confirm != "y":
+            print("Aborted.")
+            sys.exit(0)
 
     # --- Deploy ---
     gateway_url = None
