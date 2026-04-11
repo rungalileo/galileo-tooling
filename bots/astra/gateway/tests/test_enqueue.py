@@ -67,3 +67,17 @@ class TestEnqueueTask:
         oidc = task.http_request.oidc_token
         assert oidc.service_account_email == "sa@project.iam.gserviceaccount.com"
         assert oidc.audience == "https://gateway.run.app"
+
+    @patch.dict("os.environ", ENV)
+    @patch("astra_gateway.enqueue._tasks_client")
+    async def test_task_id_sanitizes_dots(self, mock_client):
+        mock_client.create_task = AsyncMock()
+        mock_client.queue_path.return_value = "parent"
+        mock_client.task_path.return_value = "task-name"
+
+        payload = {**PAYLOAD, "repo_name": "galileo.ui"}
+        await enqueue_task(payload)
+
+        task_id = mock_client.task_path.call_args[0][3]
+        assert "." not in task_id
+        assert task_id == "myorg-galileo_ui-pr42-c99"
