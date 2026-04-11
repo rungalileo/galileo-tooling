@@ -56,7 +56,12 @@ async def mint_installation_token(
             },
         )
         resp.raise_for_status()
-        return resp.json()["token"]
+        data = resp.json()
+        log.info(
+            "Installation token permissions: %s",
+            data.get("permissions"),
+        )
+        return data["token"]
 
 
 def validate_oidc_token(

@@ -156,8 +156,30 @@ After the first deploy, update the GitHub App webhook URL to the gateway URL pri
 | Resource | URL |
 |---|---|
 | App Settings | https://github.com/organizations/rungalileo/settings/apps/galileo-astra |
+| Permissions | https://github.com/organizations/rungalileo/settings/apps/galileo-astra/permissions |
 | Webhook Deliveries | https://github.com/organizations/rungalileo/settings/apps/galileo-astra/advanced |
 | Installations | https://github.com/organizations/rungalileo/settings/installations |
+
+### Required permissions
+
+#### Repository permissions
+
+| Permission | Access level | Why |
+|---|---|---|
+| **Contents** | Read-only | Fetch file contents during review |
+| **Checks** | Read & write | Read CI check results; create Astra's own Check Run |
+| **Issues** | Read & write | Post comments on PRs, read conversation history, add reactions (`eyes`, `rocket`) |
+| **Metadata** | Read-only | Automatically granted; basic repo info |
+| **Pull requests** | Read & write | Fetch PR metadata and diffs; submit reviews via GraphQL `addPullRequestReview` |
+| **Commit statuses** | Read-only | Read legacy commit status results |
+
+All other permissions should be **No access**.
+
+#### Event subscriptions
+
+| Event | Why |
+|---|---|
+| **Issue comments** | Primary trigger — fires on `/astra review` comments on PRs |
 
 ## GCP Console
 

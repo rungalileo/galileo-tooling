@@ -83,11 +83,16 @@ async def handle_webhook(request: Request) -> JSONResponse:
 
         # 8. Add eyes reaction (non-critical)
         try:
-            await client.post(
+            reaction_resp = await client.post(
                 f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
                 headers=_github_headers(token),
                 json={"content": "eyes"},
             )
+            if not reaction_resp.is_success:
+                log.warning(
+                    "Failed to add eyes reaction: %d %s",
+                    reaction_resp.status_code, reaction_resp.text,
+                )
         except Exception:
             log.warning("Failed to add eyes reaction", exc_info=True)
 
