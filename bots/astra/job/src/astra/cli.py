@@ -15,7 +15,9 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     review = subparsers.add_parser("review", help="Code review of a PR")
-    review.add_argument("pr_url", help="GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)")
+    review.add_argument(
+        "pr_url", help="GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)"
+    )
     review.set_defaults(func=cmd_review)
 
     args = parser.parse_args()

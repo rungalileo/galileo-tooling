@@ -10,7 +10,12 @@ from urllib.parse import quote
 
 from astra import GCP_PROJECT, GCP_REGION, JOB_NAME
 from astra.github import parse_pr_url
-from astra.github.api import add_reaction, get_pr_metadata, post_error_comment, publish_review
+from astra.github.api import (
+    add_reaction,
+    get_pr_metadata,
+    post_error_comment,
+    publish_review,
+)
 from astra.github.clone import clone_pr
 from astra.github.fetcher import fetch_pr_data
 from astra.shortcut.api import extract_shortcut_urls, get_story
@@ -38,7 +43,8 @@ def _log_explorer_url(execution: str) -> str:
 
 
 async def _fetch_shortcut_stories(
-    pr_data: dict, output_dir: Path,
+    pr_data: dict,
+    output_dir: Path,
 ) -> dict[str, ContextFile]:
     """Extract Shortcut links from PR description and comments, fetch each story."""
     if not os.environ.get("SHORTCUT_API_TOKEN"):
@@ -88,14 +94,23 @@ async def _fetch_shortcut_stories(
 
 
 async def _prepare_context_files(
-    owner: str, repo: str, pr_number: int, output_dir: Path, *, metadata: dict,
+    owner: str,
+    repo: str,
+    pr_number: int,
+    output_dir: Path,
+    *,
+    metadata: dict,
 ) -> dict[str, ContextFile]:
     log.info("Fetching PR data")
-    raw_paths = await fetch_pr_data(owner, repo, pr_number, output_dir, metadata=metadata)
+    raw_paths = await fetch_pr_data(
+        owner, repo, pr_number, output_dir, metadata=metadata
+    )
 
     context_files: dict[str, ContextFile] = {
         "diff": ContextFile(title="Pull request diff", path=raw_paths["diff"]),
-        "metadata": ContextFile(title="Pull request metadata", path=raw_paths["metadata"]),
+        "metadata": ContextFile(
+            title="Pull request metadata", path=raw_paths["metadata"]
+        ),
     }
 
     # Load the saved PR data to extract Shortcut links
@@ -132,7 +147,12 @@ async def _react(owner: str, repo: str, comment_id: int | None, reaction: str) -
     try:
         await add_reaction(owner, repo, comment_id, reaction)
     except Exception:
-        log.warning("Failed to add %s reaction to comment %d", reaction, comment_id, exc_info=True)
+        log.warning(
+            "Failed to add %s reaction to comment %d",
+            reaction,
+            comment_id,
+            exc_info=True,
+        )
 
 
 async def cmd_review(args: argparse.Namespace) -> None:
@@ -151,7 +171,9 @@ async def cmd_review(args: argparse.Namespace) -> None:
             execution = os.environ.get("CLOUD_RUN_EXECUTION", "unknown")
             logs_url = _log_explorer_url(execution)
             await post_error_comment(
-                owner, repo, pr_number,
+                owner,
+                repo,
+                pr_number,
                 "An unexpected error occurred while running the review. "
                 f"Job: [`{execution}`]({logs_url})",
             )
@@ -161,7 +183,10 @@ async def cmd_review(args: argparse.Namespace) -> None:
 
 
 async def _run_review(
-    owner: str, repo: str, pr_number: int, comment_id: int | None,
+    owner: str,
+    repo: str,
+    pr_number: int,
+    comment_id: int | None,
 ) -> None:
     timestamp = f"{time.time_ns() // 1_000_000}"
     output_dir = Path(".output") / owner / repo / str(pr_number) / timestamp
@@ -179,19 +204,28 @@ async def _run_review(
     log.info("Branch: %s, base: %s", branch, main_branch)
 
     log.info("Cloning PR branch")
-    clone_path = await clone_pr(owner, repo, branch, repo_url=repo_url, main_branch=main_branch)
+    clone_path = await clone_pr(
+        owner, repo, branch, repo_url=repo_url, main_branch=main_branch
+    )
 
     if (clone_path / "poetry.lock").exists():
         log.info("Found poetry.lock, running poetry install")
         try:
-            proc = await asyncio.create_subprocess_exec("poetry", "install", cwd=clone_path)
+            proc = await asyncio.create_subprocess_exec(
+                "poetry", "install", cwd=clone_path
+            )
             await proc.communicate()
             if proc.returncode:
-                log.warning("poetry install failed (exit %d), continuing without it", proc.returncode)
+                log.warning(
+                    "poetry install failed (exit %d), continuing without it",
+                    proc.returncode,
+                )
         except OSError:
             log.warning("poetry install failed, continuing without it")
 
-    context_files = await _prepare_context_files(owner, repo, pr_number, output_dir, metadata=metadata)
+    context_files = await _prepare_context_files(
+        owner, repo, pr_number, output_dir, metadata=metadata
+    )
     log.info("PR data saved to %s", output_dir)
 
     log.info("Running review workflow")
@@ -211,7 +245,12 @@ async def _run_review(
         log.error("Workflow completed with error: %s", result.error)
         await _react(owner, repo, comment_id, "confused")
         try:
-            await post_error_comment(owner, repo, pr_number, f"{result.error}\n\nJob: [`{execution}`]({logs_url})")
+            await post_error_comment(
+                owner,
+                repo,
+                pr_number,
+                f"{result.error}\n\nJob: [`{execution}`]({logs_url})",
+            )
         except Exception:
             log.warning("Failed to post error comment", exc_info=True)
         sys.exit(1)
@@ -222,14 +261,18 @@ async def _run_review(
         log.info("Review written to %s", review_path)
         log.info("Publishing review to GitHub")
         submit_result = await publish_review(
-            owner, repo, pr_number,
+            owner,
+            repo,
+            pr_number,
             commit_sha=metadata["head"]["sha"],
             review=result.review,
             pr_node_id=metadata["node_id"],
             diff_text=Path(context_files["diff"].path).read_text(),
         )
         log.info("Review published to GitHub")
-        review_url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
+        review_url = submit_result["submitPullRequestReview"]["pullRequestReview"][
+            "url"
+        ]
         log.info("Review successfully published at %s", review_url)
 
     await _react(owner, repo, comment_id, "rocket")

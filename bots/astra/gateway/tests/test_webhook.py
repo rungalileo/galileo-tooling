@@ -25,9 +25,14 @@ ENV = {
 
 
 def _sign(body: bytes) -> str:
-    return "sha256=" + hmac.new(
-        WEBHOOK_SECRET.encode(), body, hashlib.sha256,
-    ).hexdigest()
+    return (
+        "sha256="
+        + hmac.new(
+            WEBHOOK_SECRET.encode(),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
 
 def _issue_comment_payload(
@@ -153,7 +158,11 @@ class TestWebhookHappyPath:
     @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
     @patch("astra_gateway.webhook.httpx.AsyncClient")
     def test_valid_command_enqueues_task(
-        self, mock_client_cls, mock_mint, mock_enqueue, client,
+        self,
+        mock_client_cls,
+        mock_mint,
+        mock_enqueue,
+        client,
     ):
         mock_mint.return_value = "ghs_token"
 
@@ -201,7 +210,11 @@ class TestWebhookHeadShaFailure:
     @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
     @patch("astra_gateway.webhook.httpx.AsyncClient")
     def test_head_sha_failure_posts_error_and_confused_reaction(
-        self, mock_client_cls, mock_mint, mock_enqueue, client,
+        self,
+        mock_client_cls,
+        mock_mint,
+        mock_enqueue,
+        client,
     ):
         mock_mint.return_value = "ghs_token"
 
@@ -212,7 +225,9 @@ class TestWebhookHeadShaFailure:
         error_response = MagicMock(spec=httpx.Response)
         error_response.status_code = 404
         mock_client.get.side_effect = httpx.HTTPStatusError(
-            "Not Found", request=MagicMock(), response=error_response,
+            "Not Found",
+            request=MagicMock(),
+            response=error_response,
         )
         mock_client.post.return_value = MagicMock()
 
@@ -249,7 +264,11 @@ class TestMintTokenFailure:
     @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
     @patch("astra_gateway.webhook.httpx.AsyncClient")
     def test_mint_failure_returns_200_no_enqueue(
-        self, mock_client_cls, mock_mint, mock_enqueue, client,
+        self,
+        mock_client_cls,
+        mock_mint,
+        mock_enqueue,
+        client,
     ):
         mock_mint.side_effect = Exception("token exchange failed")
 
@@ -277,7 +296,11 @@ class TestEnqueueFailure:
     @patch("astra_gateway.webhook.mint_installation_token", new_callable=AsyncMock)
     @patch("astra_gateway.webhook.httpx.AsyncClient")
     def test_enqueue_failure_posts_error_comment(
-        self, mock_client_cls, mock_mint, mock_enqueue, client,
+        self,
+        mock_client_cls,
+        mock_mint,
+        mock_enqueue,
+        client,
     ):
         mock_mint.return_value = "ghs_token"
         mock_enqueue.side_effect = Exception("Cloud Tasks unavailable")
@@ -318,7 +341,8 @@ class TestEnqueueFailure:
             c for c in post_calls if "/issues/42/comments" in c.args[0]
         ]
         reaction_calls = [
-            c for c in post_calls
+            c
+            for c in post_calls
             if "/issues/comments/99/reactions" in c.args[0]
             and c.kwargs.get("json", {}).get("content") == "confused"
         ]

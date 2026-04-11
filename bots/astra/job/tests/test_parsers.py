@@ -7,7 +7,11 @@ from astra.shortcut.api import extract_shortcut_urls, extract_story_id
 
 class TestParsePrUrl:
     def test_standard_url(self):
-        assert parse_pr_url("https://github.com/org/repo/pull/42") == ("org", "repo", 42)
+        assert parse_pr_url("https://github.com/org/repo/pull/42") == (
+            "org",
+            "repo",
+            42,
+        )
 
     def test_http_url(self):
         assert parse_pr_url("http://github.com/org/repo/pull/1") == ("org", "repo", 1)
@@ -127,7 +131,10 @@ class TestExtractStoryId:
         assert extract_story_id("https://app.shortcut.com/galileo/story/678") == 678
 
     def test_url_with_slug(self):
-        assert extract_story_id("https://app.shortcut.com/galileo/story/678/my-story") == 678
+        assert (
+            extract_story_id("https://app.shortcut.com/galileo/story/678/my-story")
+            == 678
+        )
 
     def test_invalid(self):
         with pytest.raises(ValueError, match="Could not extract"):

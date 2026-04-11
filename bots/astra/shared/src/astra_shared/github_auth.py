@@ -21,7 +21,9 @@ def generate_jwt(app_id: str, private_key_pem: str) -> str:
 
 
 async def mint_installation_token(
-    app_id: str, private_key_pem: str, installation_id: int,
+    app_id: str,
+    private_key_pem: str,
+    installation_id: int,
 ) -> str:
     """Exchange a JWT for a short-lived installation access token."""
     jwt_token = generate_jwt(app_id, private_key_pem)

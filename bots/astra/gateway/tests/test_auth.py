@@ -26,9 +26,14 @@ class TestValidateWebhookSignature:
     def test_valid_signature(self):
         secret = "test-secret"
         body = b'{"action":"created"}'
-        sig = "sha256=" + hmac.new(
-            secret.encode(), body, hashlib.sha256,
-        ).hexdigest()
+        sig = (
+            "sha256="
+            + hmac.new(
+                secret.encode(),
+                body,
+                hashlib.sha256,
+            ).hexdigest()
+        )
         assert validate_webhook_signature(body, sig, secret) is True
 
     def test_invalid_signature(self):
@@ -51,7 +56,9 @@ class TestGenerateJwt:
     def test_jwt_claims(self):
         token = generate_jwt("12345", TEST_PRIVATE_KEY_PEM)
         decoded = jwt.decode(
-            token, TEST_PUBLIC_KEY, algorithms=["RS256"],
+            token,
+            TEST_PUBLIC_KEY,
+            algorithms=["RS256"],
             options={"verify_exp": False},
         )
         assert decoded["iss"] == "12345"
@@ -78,7 +85,9 @@ class TestMintInstallationToken:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("astra_shared.github_auth.httpx.AsyncClient", return_value=mock_client):
+        with patch(
+            "astra_shared.github_auth.httpx.AsyncClient", return_value=mock_client
+        ):
             token = await mint_installation_token("123", TEST_PRIVATE_KEY_PEM, 456)
 
         assert token == "ghs_test123"
@@ -102,11 +111,14 @@ class TestValidateOidcToken:
         mock_id_token.verify_oauth2_token.return_value = {
             "email": "sa@project.iam.gserviceaccount.com",
         }
-        assert await validate_oidc_token(
-            "Bearer tok",
-            "https://gateway.run.app",
-            "sa@project.iam.gserviceaccount.com",
-        ) is True
+        assert (
+            await validate_oidc_token(
+                "Bearer tok",
+                "https://gateway.run.app",
+                "sa@project.iam.gserviceaccount.com",
+            )
+            is True
+        )
 
     @patch("astra_gateway.auth.google_requests")
     @patch("astra_gateway.auth.id_token")
@@ -114,8 +126,11 @@ class TestValidateOidcToken:
         mock_id_token.verify_oauth2_token.return_value = {
             "email": "wrong@project.iam.gserviceaccount.com",
         }
-        assert await validate_oidc_token(
-            "Bearer tok",
-            "https://gateway.run.app",
-            "expected@project.iam.gserviceaccount.com",
-        ) is False
+        assert (
+            await validate_oidc_token(
+                "Bearer tok",
+                "https://gateway.run.app",
+                "expected@project.iam.gserviceaccount.com",
+            )
+            is False
+        )

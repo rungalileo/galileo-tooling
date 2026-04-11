@@ -45,7 +45,10 @@ async def handle_dispatch(request: Request) -> JSONResponse:
 
     log.info(
         "Dispatching %s for %s/%s#%d",
-        command, repo_owner, repo_name, pr_number,
+        command,
+        repo_owner,
+        repo_name,
+        pr_number,
     )
 
     # 3. Construct PR URL matching existing CLI interface
@@ -69,11 +72,13 @@ async def handle_dispatch(request: Request) -> JSONResponse:
                     ),
                     *(
                         [run_v2.EnvVar(name="ASTRA_COMMENT_ID", value=str(comment_id))]
-                        if comment_id else []
+                        if comment_id
+                        else []
                     ),
                     *(
                         [run_v2.EnvVar(name="ASTRA_HEAD_SHA", value=str(head_sha))]
-                        if head_sha else []
+                        if head_sha
+                        else []
                     ),
                 ],
             ),

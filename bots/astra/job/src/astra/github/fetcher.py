@@ -8,7 +8,12 @@ log = logging.getLogger(__name__)
 
 
 async def fetch_pr_data(
-    owner: str, repo: str, pr_number: int, output_dir: Path, *, metadata: dict,
+    owner: str,
+    repo: str,
+    pr_number: int,
+    output_dir: Path,
+    *,
+    metadata: dict,
 ) -> dict[str, str]:
     output_dir.mkdir(parents=True, exist_ok=True)
 

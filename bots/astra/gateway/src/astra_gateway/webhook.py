@@ -67,7 +67,11 @@ async def handle_webhook(request: Request) -> JSONResponse:
 
     log.info(
         "Received /astra %s from %s on %s/%s#%d",
-        command, requester, repo_owner, repo_name, pr_number,
+        command,
+        requester,
+        repo_owner,
+        repo_name,
+        pr_number,
     )
 
     # 7. Mint installation token
@@ -76,7 +80,9 @@ async def handle_webhook(request: Request) -> JSONResponse:
     try:
         token = await mint_installation_token(app_id, private_key, installation_id)
     except Exception:
-        log.exception("Failed to mint installation token for installation %s", installation_id)
+        log.exception(
+            "Failed to mint installation token for installation %s", installation_id
+        )
         return JSONResponse({"error": "failed to mint installation token"})
 
     async with httpx.AsyncClient() as client:
@@ -119,7 +125,8 @@ async def handle_webhook(request: Request) -> JSONResponse:
                     if not reaction_resp.is_success:
                         log.warning(
                             "Failed to add eyes reaction: %d %s",
-                            reaction_resp.status_code, reaction_resp.text,
+                            reaction_resp.status_code,
+                            reaction_resp.text,
                         )
                 except Exception:
                     log.warning("Failed to add eyes reaction", exc_info=True)
@@ -128,7 +135,9 @@ async def handle_webhook(request: Request) -> JSONResponse:
                 await client.post(
                     f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
                     headers=_github_headers(token),
-                    json={"body": f"Failed to process command: could not fetch PR metadata ({exc.response.status_code})."},
+                    json={
+                        "body": f"Failed to process command: could not fetch PR metadata ({exc.response.status_code})."
+                    },
                 )
                 await client.post(
                     f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",
@@ -138,35 +147,44 @@ async def handle_webhook(request: Request) -> JSONResponse:
                 return JSONResponse({"error": "failed to fetch PR head SHA"})
 
             # 11. Enqueue Cloud Task
-            await enqueue_task({
-                "repo_owner": repo_owner,
-                "repo_name": repo_name,
-                "pr_number": pr_number,
-                "head_sha": head_sha,
-                "installation_id": installation_id,
-                "comment_id": comment_id,
-                "command": command,
-                "requester": requester,
-            })
+            await enqueue_task(
+                {
+                    "repo_owner": repo_owner,
+                    "repo_name": repo_name,
+                    "pr_number": pr_number,
+                    "head_sha": head_sha,
+                    "installation_id": installation_id,
+                    "comment_id": comment_id,
+                    "command": command,
+                    "requester": requester,
+                }
+            )
 
-            return JSONResponse({
-                "ok": True,
-                "command": command,
-                "repo": f"{repo_owner}/{repo_name}",
-                "pr": pr_number,
-                "head_sha": head_sha,
-                "requester": requester,
-            })
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "command": command,
+                    "repo": f"{repo_owner}/{repo_name}",
+                    "pr": pr_number,
+                    "head_sha": head_sha,
+                    "requester": requester,
+                }
+            )
         except Exception:
             log.exception(
                 "Unexpected error processing /astra %s on %s/%s#%d",
-                command, repo_owner, repo_name, pr_number,
+                command,
+                repo_owner,
+                repo_name,
+                pr_number,
             )
             try:
                 await client.post(
                     f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/{pr_number}/comments",
                     headers=_github_headers(token),
-                    json={"body": "Sorry, an unexpected error occurred while processing your command."},
+                    json={
+                        "body": "Sorry, an unexpected error occurred while processing your command."
+                    },
                 )
                 await client.post(
                     f"{GITHUB_API}/repos/{repo_owner}/{repo_name}/issues/comments/{comment_id}/reactions",

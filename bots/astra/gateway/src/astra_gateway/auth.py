@@ -20,7 +20,9 @@ __all__ = [
 
 
 def validate_webhook_signature(
-    payload_body: bytes, signature_header: str, secret: str,
+    payload_body: bytes,
+    signature_header: str,
+    secret: str,
 ) -> bool:
     """Validate GitHub webhook HMAC-SHA256 signature.
 
@@ -28,16 +30,21 @@ def validate_webhook_signature(
     """
     if not signature_header:
         return False
-    expected = "sha256=" + hmac.new(
-        key=secret.encode("utf-8"),
-        msg=payload_body,
-        digestmod=hashlib.sha256,
-    ).hexdigest()
+    expected = (
+        "sha256="
+        + hmac.new(
+            key=secret.encode("utf-8"),
+            msg=payload_body,
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+    )
     return hmac.compare_digest(expected, signature_header)
 
 
 def _validate_oidc_token_sync(
-    auth_header: str, expected_audience: str, expected_email: str,
+    auth_header: str,
+    expected_audience: str,
+    expected_email: str,
 ) -> bool:
     if not auth_header.startswith("Bearer "):
         return False
@@ -51,7 +58,8 @@ def _validate_oidc_token_sync(
         if claims.get("email") != expected_email:
             log.warning(
                 "OIDC email mismatch: got %s, expected %s",
-                claims.get("email"), expected_email,
+                claims.get("email"),
+                expected_email,
             )
             return False
         return True
@@ -61,9 +69,14 @@ def _validate_oidc_token_sync(
 
 
 async def validate_oidc_token(
-    auth_header: str, expected_audience: str, expected_email: str,
+    auth_header: str,
+    expected_audience: str,
+    expected_email: str,
 ) -> bool:
     """Validate a Google OIDC token from Cloud Tasks."""
     return await asyncio.to_thread(
-        _validate_oidc_token_sync, auth_header, expected_audience, expected_email,
+        _validate_oidc_token_sync,
+        auth_header,
+        expected_audience,
+        expected_email,
     )
