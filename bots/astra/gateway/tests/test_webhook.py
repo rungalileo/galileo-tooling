@@ -205,24 +205,18 @@ class TestWebhookHeadShaFailure:
     ):
         mock_mint.return_value = "ghs_token"
 
-        # First client: GET raises HTTPStatusError
-        mock_client_fail = AsyncMock()
-        mock_client_fail.__aenter__ = AsyncMock(return_value=mock_client_fail)
-        mock_client_fail.__aexit__ = AsyncMock(return_value=False)
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
         error_response = MagicMock(spec=httpx.Response)
         error_response.status_code = 404
-        mock_client_fail.get.side_effect = httpx.HTTPStatusError(
+        mock_client.get.side_effect = httpx.HTTPStatusError(
             "Not Found", request=MagicMock(), response=error_response,
         )
+        mock_client.post.return_value = MagicMock()
 
-        # Second client: error recovery posts
-        mock_client_recover = AsyncMock()
-        mock_client_recover.__aenter__ = AsyncMock(return_value=mock_client_recover)
-        mock_client_recover.__aexit__ = AsyncMock(return_value=False)
-        mock_client_recover.post.return_value = MagicMock()
-
-        mock_client_cls.side_effect = [mock_client_fail, mock_client_recover]
+        mock_client_cls.return_value = mock_client
 
         payload = _issue_comment_payload("/astra review")
         body = json.dumps(payload).encode()
@@ -241,8 +235,8 @@ class TestWebhookHeadShaFailure:
         mock_enqueue.assert_not_called()
 
         # Verify error comment and confused reaction were posted
-        assert mock_client_recover.post.call_count == 2
-        comment_call, reaction_call = mock_client_recover.post.call_args_list
+        assert mock_client.post.call_count == 2
+        comment_call, reaction_call = mock_client.post.call_args_list
         assert "/issues/42/comments" in comment_call.args[0]
         assert "404" in comment_call.kwargs["json"]["body"]
         assert "/issues/comments/99/reactions" in reaction_call.args[0]
