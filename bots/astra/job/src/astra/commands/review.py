@@ -6,6 +6,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 from astra.github import parse_pr_url
 from astra.github.api import add_reaction, get_pr_metadata, post_error_comment, publish_review
@@ -16,6 +17,27 @@ from astra.workflows.review import ContextFile, run_review
 
 
 log = logging.getLogger(__name__)
+
+GCP_PROJECT = "rungalileo-dev"
+GCP_REGION = "us-west1"
+JOB_NAME = "astra-job"
+
+
+def _log_explorer_url(execution: str) -> str:
+    """Build a GCP Log Explorer URL for a given job execution."""
+    query = (
+        f'resource.type = "cloud_run_job" '
+        f'resource.labels.job_name = "{JOB_NAME}" '
+        f'resource.labels.location = "{GCP_REGION}" '
+        f'labels."run.googleapis.com/execution_name" = "{execution}" '
+        f"severity>=DEFAULT"
+    )
+    return (
+        f"https://console.cloud.google.com/logs/query"
+        f";query={quote(query)}"
+        f";storageScope=project"
+        f"?project={GCP_PROJECT}"
+    )
 
 
 async def _fetch_shortcut_stories(
@@ -130,10 +152,11 @@ async def cmd_review(args: argparse.Namespace) -> None:
         await _react(owner, repo, comment_id, "confused")
         try:
             execution = os.environ.get("CLOUD_RUN_EXECUTION", "unknown")
+            logs_url = _log_explorer_url(execution)
             await post_error_comment(
                 owner, repo, pr_number,
                 "An unexpected error occurred while running the review. "
-                f"Job: `{execution}`",
+                f"Job: [`{execution}`]({logs_url})",
             )
         except Exception:
             log.warning("Failed to post error comment", exc_info=True)
@@ -187,10 +210,11 @@ async def _run_review(
 
     if result.error:
         execution = os.environ.get("CLOUD_RUN_EXECUTION", "unknown")
+        logs_url = _log_explorer_url(execution)
         log.error("Workflow completed with error: %s", result.error)
         await _react(owner, repo, comment_id, "confused")
         try:
-            await post_error_comment(owner, repo, pr_number, f"{result.error}\n\nJob: `{execution}`")
+            await post_error_comment(owner, repo, pr_number, f"{result.error}\n\nJob: [`{execution}`]({logs_url})")
         except Exception:
             log.warning("Failed to post error comment", exc_info=True)
         sys.exit(1)
