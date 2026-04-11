@@ -29,6 +29,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from _helpers import get_active_project
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -47,26 +49,6 @@ ASTRA_ROOT = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def get_active_project() -> str:
-    """Get the active GCP project from gcloud config, or exit."""
-    try:
-        result = subprocess.run(
-            ["gcloud", "config", "get-value", "project"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except FileNotFoundError:
-        print("Error: gcloud CLI not found. Install it from https://cloud.google.com/sdk/docs/install")
-        sys.exit(1)
-
-    project = result.stdout.strip()
-    if not project or project == "(unset)":
-        print("Error: No active GCP project. Run: gcloud config set project <PROJECT_ID>")
-        sys.exit(1)
-    return project
 
 
 def check_docker() -> None:

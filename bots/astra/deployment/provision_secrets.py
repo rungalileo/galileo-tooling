@@ -32,12 +32,13 @@ Usage:
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
 from google.api_core import exceptions as gcp_exceptions
 from google.cloud import secretmanager
+
+from _helpers import get_active_project
 
 # (secret_name, env_var, description, required)
 # "required" means the secret must exist after this script runs. If the secret
@@ -71,26 +72,6 @@ def load_dotenv(path: Path) -> dict[str, str]:
             value = value[1:-1]
         env[key] = value
     return env
-
-
-def get_active_project() -> str:
-    """Get the active GCP project from gcloud config, or exit."""
-    try:
-        result = subprocess.run(
-            ["gcloud", "config", "get-value", "project"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except FileNotFoundError:
-        print("Error: gcloud CLI not found. Install it from https://cloud.google.com/sdk/docs/install")
-        sys.exit(1)
-
-    project = result.stdout.strip()
-    if not project or project == "(unset)":
-        print("Error: No active GCP project. Run: gcloud config set project <PROJECT_ID>")
-        sys.exit(1)
-    return project
 
 
 def verify_gcp_access(

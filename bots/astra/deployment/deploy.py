@@ -32,6 +32,8 @@ import argparse
 import subprocess
 import sys
 
+from _helpers import get_active_project, resource_exists, run_gcloud, sa_email
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -69,40 +71,6 @@ JOB_SECRETS = {
 # ---------------------------------------------------------------------------
 
 
-def get_active_project() -> str:
-    """Get the active GCP project from gcloud config, or exit."""
-    try:
-        result = subprocess.run(
-            ["gcloud", "config", "get-value", "project"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except FileNotFoundError:
-        print("Error: gcloud CLI not found. Install it from https://cloud.google.com/sdk/docs/install")
-        sys.exit(1)
-
-    project = result.stdout.strip()
-    if not project or project == "(unset)":
-        print("Error: No active GCP project. Run: gcloud config set project <PROJECT_ID>")
-        sys.exit(1)
-    return project
-
-
-def run_gcloud(
-    args: list[str], *, check: bool = True, quiet: bool = False
-) -> subprocess.CompletedProcess[str]:
-    """Run a gcloud command, printing it first for transparency."""
-    cmd = ["gcloud", *args]
-    if not quiet:
-        print(f"  $ {' '.join(cmd)}")
-    return subprocess.run(cmd, capture_output=True, text=True, check=check)
-
-
-def sa_email(sa_name: str, project: str) -> str:
-    return f"{sa_name}@{project}.iam.gserviceaccount.com"
-
-
 def image_ref(project: str, name: str, tag: str) -> str:
     return f"{REGISTRY}/{project}/{REPO}/{name}:{tag}"
 
@@ -110,12 +78,6 @@ def image_ref(project: str, name: str, tag: str) -> str:
 def format_secrets(secrets: dict[str, str]) -> str:
     """Format secrets dict as a --set-secrets value."""
     return ",".join(f"{env}={secret}" for env, secret in secrets.items())
-
-
-def resource_exists(describe_args: list[str]) -> bool:
-    """Check if a GCP resource exists by running a describe command."""
-    result = run_gcloud(describe_args, check=False, quiet=True)
-    return result.returncode == 0
 
 
 def get_service_url(service: str, project: str) -> str | None:
