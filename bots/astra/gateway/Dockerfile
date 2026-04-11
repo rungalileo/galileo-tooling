@@ -5,11 +5,11 @@ WORKDIR /app
 RUN pip install --no-cache-dir poetry \
     && poetry config virtualenvs.create false
 
+RUN useradd -m -u 1000 -s /bin/bash astra
+
 COPY --chown=astra:astra shared/ /shared/
 COPY gateway/pyproject.toml gateway/poetry.lock ./
 RUN poetry install --no-root --no-directory --only main
-
-RUN useradd -m -u 1000 -s /bin/bash astra
 
 COPY --chown=astra:astra gateway/src/ ./src/
 RUN poetry install --only main
