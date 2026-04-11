@@ -41,21 +41,12 @@ async def _paginate(client: httpx.AsyncClient, url: str, *, max_pages: int = 100
     return results
 
 
-async def get_authenticated_user() -> str:
-    """Return the bot login for the current GitHub App installation token.
+BOT_USER = "galileo-astra[bot]"
 
-    Installation tokens cannot call GET /user, so we call GET /app to get
-    the app slug and derive the bot login (<slug>[bot]).
-    """
-    async with _client() as client:
-        url = "/app"
-        log.info("GET %s", url)
-        resp = await client.get(url)
-        resp.raise_for_status()
-        slug = resp.json()["slug"]
-        login = f"{slug}[bot]"
-        log.info("Authenticated as %s", login)
-        return login
+
+async def get_authenticated_user() -> str:
+    """Return the bot login for the GitHub App."""
+    return BOT_USER
 
 
 async def get_pr_metadata(owner: str, repo: str, pr_number: int) -> dict:
@@ -212,7 +203,6 @@ async def publish_review(
     review: dict,
     pr_node_id: str,
     diff_text: str,
-    bot_user: str = "",
 ) -> dict:
     body = _format_review_body(review)
     diff_lines = _parse_diff_lines(diff_text)
@@ -371,8 +361,7 @@ async def publish_review(
     # Step 5: Post responses to existing review comment threads
     comment_responses = review.get("comment_responses", [])
     if comment_responses:
-        if not bot_user:
-            bot_user = await get_authenticated_user()
+        bot_user = BOT_USER
         existing_comments = await get_pr_review_comments(owner, repo, pr_number)
 
         # Build a map of comment_id -> set of users in that thread
