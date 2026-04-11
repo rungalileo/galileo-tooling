@@ -114,6 +114,7 @@ def build_image(project: str, name: str, context_dir: str, tags: list[str]) -> N
         tag_args.extend(["-t", image_ref(project, name, tag)])
     cmd = [
         "docker", "build",
+        "--platform", "linux/amd64",
         *tag_args,
         "-f", str(context / "Dockerfile"),
         str(context),

@@ -71,16 +71,70 @@ astra/
 
 ## Deployment
 
-### Provisioning scripts
+All deployment is scripted. Run scripts from `bots/astra/`.
 
-Run from `bots/astra/`:
+### Scripts
 
-| Script | Purpose |
-|---|---|
-| `deployment/provision_secrets.py` | Provisions GitHub App credentials in GCP Secret Manager |
-| `deployment/provision_infra.py` | Creates service accounts, IAM bindings, and Cloud Tasks queue |
+| Script | Purpose | When to run |
+|---|---|---|
+| `deployment/provision_secrets.py` | Provisions GitHub App credentials + API keys in GCP Secret Manager | First-time setup, or when rotating secrets |
+| `deployment/provision_infra.py` | Creates service accounts, IAM bindings, Artifact Registry, and Cloud Tasks queue | After secrets, or when infra config changes |
+| `deployment/build_and_push.py` | Builds Docker images (linux/amd64) and pushes to Artifact Registry | After code changes |
+| `deployment/deploy.py` | Deploys gateway service + job to Cloud Run with secrets and env vars | After building images |
 
-Run `provision_secrets.py` first, then `provision_infra.py`. Both are idempotent and safe to re-run.
+### Deployment order
+
+```bash
+cd bots/astra
+
+# 1. Provision secrets (first-time only, or when rotating)
+uv run deployment/provision_secrets.py
+
+# 2. Provision infrastructure (first-time only, or when config changes)
+uv run deployment/provision_infra.py
+
+# 3. Build and push Docker images
+uv run deployment/build_and_push.py
+
+# 4. Deploy to Cloud Run
+uv run deployment/deploy.py
+```
+
+All scripts are idempotent and safe to re-run. For routine deployments (code changes only), just run steps 3 and 4.
+
+Each script supports `--help` for options (e.g., `--gateway`/`--job` to target a single component, `--tag` for a specific image tag).
+
+### Updating after code changes
+
+After making changes to gateway or job code, rebuild and redeploy:
+
+```bash
+cd bots/astra
+
+# Rebuild and push only the changed component
+uv run deployment/build_and_push.py --gateway   # gateway changes only
+uv run deployment/build_and_push.py --job        # job changes only
+uv run deployment/build_and_push.py              # both
+
+# Deploy the new image
+uv run deployment/deploy.py --gateway            # gateway only
+uv run deployment/deploy.py --job                # job only
+uv run deployment/deploy.py                      # both
+```
+
+To deploy a specific image tag instead of `latest`:
+
+```bash
+uv run deployment/deploy.py --tag abc1234
+```
+
+### Post-deploy: GitHub App webhook URL
+
+After the first deploy, update the GitHub App webhook URL to the gateway URL printed by `deploy.py`:
+
+1. Go to the GitHub App settings > General > Webhook URL at https://github.com/organizations/rungalileo/settings/apps/galileo-astra
+2. Set it to `https://<gateway-url>/webhook`
+3. Verify delivery on the Advanced tab
 
 ### GCP resources
 
@@ -89,11 +143,21 @@ Run `provision_secrets.py` first, then `provision_infra.py`. Both are idempotent
 | **Secret** | `astra-webhook-secret` | HMAC secret for validating GitHub webhook payloads |
 | **Secret** | `astra-app-id` | GitHub App ID |
 | **Secret** | `astra-app-private-key` | GitHub App private key (PEM) |
+| **Secret** | `astra-anthropic-api-key` | Anthropic API key for Claude Agent SDK |
+| **Secret** | `astra-shortcut-api-token` | Shortcut API token (optional) |
 | **Service account** | `astra-gateway` | Used by the gateway Cloud Run service |
 | **Service account** | `astra-job` | Used by the job Cloud Run job |
 | **Cloud Tasks queue** | `astra-task-queue` | Dispatches review jobs (region: `us-west1`) |
 | **Cloud Run service** | `astra-gateway` | Receives GitHub webhooks and enqueues tasks |
 | **Cloud Run job** | `astra-job` | Executes PR reviews in a sandboxed container |
+
+## GitHub App
+
+| Resource | URL |
+|---|---|
+| App Settings | https://github.com/organizations/rungalileo/settings/apps/galileo-astra |
+| Webhook Deliveries | https://github.com/organizations/rungalileo/settings/apps/galileo-astra/advanced |
+| Installations | https://github.com/organizations/rungalileo/settings/installations |
 
 ## GCP Console
 
