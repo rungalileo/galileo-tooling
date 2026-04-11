@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
+from astra import GCP_PROJECT, GCP_REGION, JOB_NAME
 from astra.github import parse_pr_url
 from astra.github.api import add_reaction, get_pr_metadata, post_error_comment, publish_review
 from astra.github.clone import clone_pr
@@ -17,10 +18,6 @@ from astra.workflows.review import ContextFile, run_review
 
 
 log = logging.getLogger(__name__)
-
-GCP_PROJECT = "rungalileo-dev"
-GCP_REGION = "us-west1"
-JOB_NAME = "astra-job"
 
 
 def _log_explorer_url(execution: str) -> str:
