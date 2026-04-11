@@ -9,10 +9,11 @@ COPY shared/ /shared/
 COPY gateway/pyproject.toml gateway/poetry.lock ./
 RUN poetry install --no-root --no-directory --only main
 
-COPY gateway/src/ ./src/
+RUN useradd -m -u 1000 -s /bin/bash astra
+
+COPY --chown=astra:astra gateway/src/ ./src/
 RUN poetry install --only main
 
-RUN useradd -m -u 1000 -s /bin/bash astra
 USER astra
 
 ENV PORT=8080
