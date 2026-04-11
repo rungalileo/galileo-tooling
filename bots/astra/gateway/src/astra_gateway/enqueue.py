@@ -2,6 +2,7 @@ import json
 import logging
 import os
 
+from google.api_core.exceptions import AlreadyExists
 from google.cloud import tasks_v2
 
 log = logging.getLogger(__name__)
@@ -39,5 +40,8 @@ async def enqueue_task(payload: dict) -> None:
         ),
     )
 
-    await _tasks_client.create_task(request={"parent": parent, "task": task})
-    log.info("Enqueued task %s", task_id)
+    try:
+        await _tasks_client.create_task(request={"parent": parent, "task": task})
+        log.info("Enqueued task %s", task_id)
+    except AlreadyExists:
+        log.info("Task %s already exists (duplicate webhook delivery), skipping", task_id)
