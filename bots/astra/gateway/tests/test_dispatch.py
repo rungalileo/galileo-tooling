@@ -71,3 +71,5 @@ class TestDispatchHappyPath:
         assert overrides.args == ["review", "https://github.com/myorg/myrepo/pull/42"]
         env_dict = {e.name: e.value for e in overrides.env}
         assert env_dict["ASTRA_INSTALLATION_ID"] == "111"
+        assert env_dict["ASTRA_COMMENT_ID"] == "99"
+        assert env_dict["ASTRA_HEAD_SHA"] == "abc123"

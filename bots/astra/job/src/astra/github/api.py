@@ -408,6 +408,32 @@ async def publish_review(
     return submit_result
 
 
+async def add_reaction(
+    owner: str, repo: str, comment_id: int, reaction: str,
+) -> None:
+    """Add a reaction emoji to an issue comment."""
+    async with _client() as client:
+        url = f"/repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
+        log.info("POST %s (%s)", url, reaction)
+        resp = await client.post(url, json={"content": reaction})
+        resp.raise_for_status()
+
+
+async def post_error_comment(
+    owner: str, repo: str, pr_number: int, error: str,
+) -> None:
+    """Post an error comment on a PR."""
+    body = (
+        "> ⚠️ **Astra encountered an error while reviewing this PR.**\n\n"
+        f"```\n{error}\n```"
+    )
+    async with _client() as client:
+        url = f"/repos/{owner}/{repo}/issues/{pr_number}/comments"
+        log.info("POST %s (error comment)", url)
+        resp = await client.post(url, json={"body": body})
+        resp.raise_for_status()
+
+
 async def get_pr_diff(owner: str, repo: str, pr_number: int) -> str:
     async with _client() as client:
         url = f"/repos/{owner}/{repo}/pulls/{pr_number}"

@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from astra.github import parse_pr_url
-from astra.github.api import get_pr_metadata, publish_review
+from astra.github.api import add_reaction, get_pr_metadata, post_error_comment, publish_review
 from astra.github.clone import clone_pr
 from astra.github.fetcher import fetch_pr_data
 from astra.shortcut.api import extract_shortcut_urls, get_story
@@ -106,11 +106,42 @@ async def _ensure_github_token() -> None:
     log.info("Minted installation token for installation %s", installation_id)
 
 
+async def _react(owner: str, repo: str, comment_id: int | None, reaction: str) -> None:
+    """Add a reaction to the triggering comment, if comment_id is available."""
+    if not comment_id:
+        return
+    try:
+        await add_reaction(owner, repo, comment_id, reaction)
+    except Exception:
+        log.warning("Failed to add %s reaction to comment %d", reaction, comment_id, exc_info=True)
+
+
 async def cmd_review(args: argparse.Namespace) -> None:
     await _ensure_github_token()
     owner, repo, pr_number = parse_pr_url(args.pr_url)
-    log.info("PR: %s/%s#%d", owner, repo, pr_number)
+    comment_id_str = os.environ.get("ASTRA_COMMENT_ID")
+    comment_id = int(comment_id_str) if comment_id_str else None
+    log.info("PR: %s/%s#%d (comment_id=%s)", owner, repo, pr_number, comment_id)
 
+    try:
+        await _run_review(owner, repo, pr_number, comment_id)
+    except Exception:
+        log.error("Review failed", exc_info=True)
+        await _react(owner, repo, comment_id, "confused")
+        try:
+            await post_error_comment(
+                owner, repo, pr_number,
+                "An unexpected error occurred while running the review. "
+                "Check the Cloud Run job logs for details.",
+            )
+        except Exception:
+            log.warning("Failed to post error comment", exc_info=True)
+        sys.exit(1)
+
+
+async def _run_review(
+    owner: str, repo: str, pr_number: int, comment_id: int | None,
+) -> None:
     timestamp = f"{time.time_ns() // 1_000_000}"
     output_dir = Path(".output") / owner / repo / str(pr_number) / timestamp
 
@@ -153,6 +184,15 @@ async def cmd_review(args: argparse.Namespace) -> None:
         trace_path.write_text(json.dumps(result.trace, indent=2, default=str))
         log.info("Agent trace written to %s", trace_path)
 
+    if result.error:
+        log.error("Workflow completed with error: %s", result.error)
+        await _react(owner, repo, comment_id, "confused")
+        try:
+            await post_error_comment(owner, repo, pr_number, result.error)
+        except Exception:
+            log.warning("Failed to post error comment", exc_info=True)
+        sys.exit(1)
+
     if result.review:
         review_path = output_dir / "review.json"
         review_path.write_text(json.dumps(result.review, indent=2))
@@ -169,6 +209,4 @@ async def cmd_review(args: argparse.Namespace) -> None:
         review_url = submit_result["submitPullRequestReview"]["pullRequestReview"]["url"]
         log.info("Review successfully published at %s", review_url)
 
-    if result.error:
-        log.error("Workflow completed with error: %s", result.error)
-        sys.exit(1)
+    await _react(owner, repo, comment_id, "rocket")

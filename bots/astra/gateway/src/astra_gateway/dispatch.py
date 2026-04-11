@@ -28,6 +28,8 @@ async def handle_dispatch(request: Request) -> JSONResponse:
     pr_number = payload["pr_number"]
     installation_id = payload["installation_id"]
     command = payload["command"]
+    comment_id = payload.get("comment_id")
+    head_sha = payload.get("head_sha")
 
     log.info(
         "Dispatching %s for %s/%s#%d",
@@ -53,6 +55,14 @@ async def handle_dispatch(request: Request) -> JSONResponse:
                     run_v2.EnvVar(
                         name="ASTRA_INSTALLATION_ID",
                         value=str(installation_id),
+                    ),
+                    *(
+                        [run_v2.EnvVar(name="ASTRA_COMMENT_ID", value=str(comment_id))]
+                        if comment_id else []
+                    ),
+                    *(
+                        [run_v2.EnvVar(name="ASTRA_HEAD_SHA", value=str(head_sha))]
+                        if head_sha else []
                     ),
                 ],
             ),
