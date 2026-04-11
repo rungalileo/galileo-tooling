@@ -3,9 +3,10 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Provision GCP infrastructure for Astra: service accounts, IAM bindings, Cloud Tasks queue.
+"""Provision GCP infrastructure for Astra.
 
 Creates:
+  - Artifact Registry Docker repository: astra
   - Service accounts: astra-gateway, astra-job
   - IAM bindings for secret access, Cloud Tasks enqueuing, Cloud Run invocation
   - Cloud Tasks queue: astra-task-queue
@@ -36,7 +37,11 @@ REQUIRED_APIS = [
     "iam.googleapis.com",
     "cloudtasks.googleapis.com",
     "run.googleapis.com",
+    "artifactregistry.googleapis.com",
 ]
+
+ARTIFACT_REGISTRY_REPO = "astra"
+ARTIFACT_REGISTRY_FORMAT = "docker"
 
 SERVICE_ACCOUNTS = {
     "astra-gateway": "Astra Gateway",
@@ -160,17 +165,38 @@ def verify_secrets_exist(project: str) -> None:
 
 def enable_apis(project: str, results: dict[str, list[tuple[str, str]]]) -> None:
     """Enable required GCP APIs."""
-    print("\n[1/6] Enabling APIs...\n")
+    print("\n[1/7] Enabling APIs...\n")
     for api in REQUIRED_APIS:
         run_gcloud(["services", "enable", api, f"--project={project}"])
         results["APIs"].append((api, "enabled"))
+
+
+def create_artifact_registry(
+    project: str, results: dict[str, list[tuple[str, str]]]
+) -> None:
+    """Create the Artifact Registry Docker repository if it doesn't exist."""
+    print("\n[2/7] Creating Artifact Registry repository...\n")
+    if resource_exists([
+        "artifacts", "repositories", "describe", ARTIFACT_REGISTRY_REPO,
+        f"--location={REGION}", f"--project={project}",
+    ]):
+        print(f"  {ARTIFACT_REGISTRY_REPO}: already exists")
+        results["Artifact Registry"].append((ARTIFACT_REGISTRY_REPO, "already exists"))
+    else:
+        run_gcloud([
+            "artifacts", "repositories", "create", ARTIFACT_REGISTRY_REPO,
+            f"--repository-format={ARTIFACT_REGISTRY_FORMAT}",
+            f"--location={REGION}",
+            f"--project={project}",
+        ])
+        results["Artifact Registry"].append((ARTIFACT_REGISTRY_REPO, "created"))
 
 
 def create_service_accounts(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Create service accounts if they don't exist."""
-    print("\n[2/6] Creating service accounts...\n")
+    print("\n[3/7] Creating service accounts...\n")
     created = []
     for sa_name, display_name in SERVICE_ACCOUNTS.items():
         email = sa_email(sa_name, project)
@@ -200,7 +226,7 @@ def bind_project_iam(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Add project-level IAM bindings."""
-    print("\n[3/6] Adding project-level IAM bindings...\n")
+    print("\n[4/7] Adding project-level IAM bindings...\n")
     for sa_name, role, scope in PROJECT_IAM_BINDINGS:
         member = sa_member(sa_name, project)
         run_gcloud([
@@ -218,7 +244,7 @@ def bind_secret_iam(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Add secret-level IAM bindings."""
-    print("\n[4/6] Adding secret-level IAM bindings...\n")
+    print("\n[5/7] Adding secret-level IAM bindings...\n")
     role = "roles/secretmanager.secretAccessor"
     for sa_name, secret in SECRET_IAM_BINDINGS:
         member = sa_member(sa_name, project)
@@ -236,7 +262,7 @@ def bind_cloud_run_iam(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Attempt Cloud Run IAM bindings; defer if resources don't exist yet."""
-    print("\n[5/6] Adding Cloud Run IAM bindings (best-effort)...\n")
+    print("\n[6/7] Adding Cloud Run IAM bindings (best-effort)...\n")
     role = "roles/run.invoker"
     for sa_name, resource_type, resource_name in CLOUD_RUN_IAM_BINDINGS:
         member = sa_member(sa_name, project)
@@ -262,7 +288,7 @@ def create_task_queue(
     project: str, results: dict[str, list[tuple[str, str]]]
 ) -> None:
     """Create or update the Cloud Tasks queue."""
-    print("\n[6/6] Creating Cloud Tasks queue...\n")
+    print("\n[7/7] Creating Cloud Tasks queue...\n")
     config_args = [f"--{k}={v}" for k, v in TASK_QUEUE_CONFIG.items()]
 
     if resource_exists([
@@ -310,6 +336,7 @@ def print_summary(project: str, results: dict[str, list[tuple[str, str]]]) -> No
                 print(f"    {name:<55} {status}")
 
     print(f"\nVerify with:")
+    print(f"  gcloud artifacts repositories describe {ARTIFACT_REGISTRY_REPO} --location={REGION} --project={project}")
     print(f"  gcloud iam service-accounts list --filter='email:astra-' --project={project}")
     print(f"  gcloud tasks queues describe {TASK_QUEUE} --location={REGION} --project={project}")
     print()
@@ -327,6 +354,9 @@ def print_plan(project: str) -> None:
     print("  APIs to enable:")
     for api in REQUIRED_APIS:
         print(f"    - {api}")
+
+    print(f"\n  Artifact Registry repository:")
+    print(f"    - {ARTIFACT_REGISTRY_REPO} (format: {ARTIFACT_REGISTRY_FORMAT}, location: {REGION})")
 
     print("\n  Service accounts to create:")
     for sa_name, display_name in SERVICE_ACCOUNTS.items():
@@ -380,6 +410,7 @@ def main() -> None:
 
     results: dict[str, list[tuple[str, str]]] = {
         "APIs": [],
+        "Artifact Registry": [],
         "Service accounts": [],
         "IAM bindings": [],
         "Cloud Run IAM": [],
@@ -389,6 +420,7 @@ def main() -> None:
 
     try:
         enable_apis(project, results)
+        create_artifact_registry(project, results)
         create_service_accounts(project, results)
         bind_project_iam(project, results)
         bind_secret_iam(project, results)
